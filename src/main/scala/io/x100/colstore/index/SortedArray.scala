@@ -62,7 +62,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   //                      |      |       |       |
   //                      V      V       V       V
   // maps             +------+-------+-------+-------+
-  // keyPos =>        |  -1  |   0   |   2   |   4   |
+  // keyPos =>        |  -2  |   0   |   2   |   4   |
   //                  +------+-------+-------+-------+
   // maps             +------+-------+-------+-------+
   // dataPos =>       |  -1  |   0   |   1   |   2   |
@@ -238,7 +238,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
   private def setKeyDataAt( keyPos : Int, dataPos : Int, key : Array[Byte], data : AnyRef): Unit = {
     assert( keyPos >= 0 )
-    assert( dataPos > 0 )
+    assert( dataPos >= 0 )
     assert( keyPos + keyLength < keySpaceSize )
     assert( key != null )
     assert( data != null )

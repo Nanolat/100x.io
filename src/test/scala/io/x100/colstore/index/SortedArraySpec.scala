@@ -1,7 +1,9 @@
 package io.x100.colstore.index
 
+import io.x100.TestUtil.Arr
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
+
 
 
 trait SortedArrayInstance extends BeforeAndAfterEach { this : Suite =>
@@ -29,7 +31,7 @@ trait SortedArrayInstance extends BeforeAndAfterEach { this : Suite =>
 /**
  * Created by unknown on 2/23/15.
  */
-class SortedArraySpec extends FlatSpec with ShouldMatchers with SortedArrayInstance with PrivateMethodTester {
+class SortedArraySpec extends FlatSpec with ShouldMatchers with PrivateMethodTester with SortedArrayInstance {
 
   /*
   class SortedArrayFixture( val keySpaceSize : Int, val keyLength : Int) {
@@ -52,8 +54,8 @@ class SortedArraySpec extends FlatSpec with ShouldMatchers with SortedArrayInsta
   it should "hit assertion failure if the key count of keySpace does not match the one on SortedArray" in {
     the [java.lang.AssertionError] thrownBy {
       sarray invokePrivate compareKeys(
-        Array[Byte]('a'),
-        Array[Byte]('a','b','c'), 0 ) should be (0)
+        Arr("a"),
+        Arr("abc"), 0 ) should be (0)
     }
 
   }
@@ -62,37 +64,38 @@ class SortedArraySpec extends FlatSpec with ShouldMatchers with SortedArrayInsta
     sarray = new SortedArray( 2, 1 );
 
     sarray invokePrivate compareKeys(
-      Array[Byte]('a'),
-      Array[Byte]('a','b'), 0 ) should be (0)
+      Arr("a"),
+      Arr("ab"), 0 ) should be (0)
 
     sarray invokePrivate compareKeys(
-      Array[Byte]('b'),
-      Array[Byte]('a','b'), 1 ) should be (0)
+      Arr("b"),
+      Arr("ab"), 1 ) should be (0)
 
     sarray = new SortedArray( 3, 1 );
 
     sarray invokePrivate compareKeys(
-      Array[Byte]('a'),
-      Array[Byte]('a','b','c'), 0 ) should be (0)
+      Arr("a"),
+      Arr("abc"), 0 ) should be (0)
 
     sarray invokePrivate compareKeys(
-      Array[Byte]('b'),
-      Array[Byte]('a','b','c'), 1 ) should be (0)
+      Arr("b"),
+      Arr("abc"), 1 ) should be (0)
 
     sarray invokePrivate compareKeys(
-      Array[Byte]('c'),
-      Array[Byte]('a','b','c'), 2 ) should be (0)
+      Arr("c"),
+      Arr("abc"), 2 ) should be (0)
+
 
     sarray = new SortedArray( 6, 2 );
 
-    sarray invokePrivate compareKeys( Array[Byte]('a','b'),
-                                      Array[Byte]('a','b','c','d','e','f'), 0 ) should be (0)
+    sarray invokePrivate compareKeys( Arr("ab"),
+                                      Arr("abcdef"), 0 ) should be (0)
 
-    sarray invokePrivate compareKeys( Array[Byte]('c','d'),
-                                      Array[Byte]('a','b','c','d','e','f'), 2 ) should be (0)
+    sarray invokePrivate compareKeys( Arr("cd"),
+                                      Arr("abcdef"), 2 ) should be (0)
 
-    sarray invokePrivate compareKeys( Array[Byte]('e','f'),
-                                      Array[Byte]('a','b','c','d','e','f'), 4 ) should be (0)
+    sarray invokePrivate compareKeys( Arr("ef"),
+                                      Arr("abcdef"), 4 ) should be (0)
 
   }
 
