@@ -109,7 +109,7 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
         prevCmp = cmp
 
         keyPos += keyLength
-        dataPos += keyLength
+        dataPos += 1
         offset += keyLength
       }
     }
@@ -165,7 +165,7 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
         prevCmp = cmp
 
         keyPos -= keyLength
-        dataPos -= keyLength
+        dataPos -= 1
         offset -= keyLength
       }
     }
@@ -532,8 +532,6 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
     {
       (null, null)
     }
-
-    (key, data)
   }
 
   def iterPrev( iter : SortedArray#Iterator ) = {
@@ -556,8 +554,6 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
     {
       (null, null)
     }
-
-    (key, data)
   }
 
   def mergeWith( sortedArray : SortedArray ): Unit = {
