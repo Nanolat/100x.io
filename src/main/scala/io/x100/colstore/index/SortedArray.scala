@@ -9,7 +9,7 @@ import io.x100.colstore.Types._
 /**
  * Created by unknown on 2/20/15.
  */
-class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
+class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   assert( keySpaceSize > 0)
   assert( keyLength > 0)
   assert( keySpaceSize > keyLength )
@@ -27,7 +27,7 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
     assert( keyLength > 0 )
     assert(key != null)
     assert(keySpace != null)
-    assert(key.length >= keyLength)
+    assert(key.length == keyLength)
 
     Arrays.compare(key, 0, keyLength, keySpace, offset, keyLength)
   }
@@ -564,10 +564,74 @@ class SortedArray(keySpaceSize:Int, val keyLength:KeyLength) {
     throw new UnsupportedFeature()
   }
 
-  def split() = {
-    val rightHalf : SortedArray = null
 
-    rightHalf
+  def init( newKeyLength : Int,
+            newKeyCount : Int,
+            newUsedKeySpace : Int,
+            srcKeySpace : Array[Byte], srcKeySpaceOffset : Int,
+            srcDataArray : Array[AnyRef], srcDataArrayOffset : Int ): Unit = {
+
+    assert( newKeyLength > 0 )
+    assert( newKeyCount > 0 )
+    assert( newUsedKeySpace > 0 )
+    assert( srcKeySpace != null)
+    assert( srcDataArray != null)
+
+    assert( newUsedKeySpace / newKeyLength == newKeyCount )
+
+    assert( srcKeySpace.length / newKeyLength == srcDataArray.length )
+    // The size of the key space should be same to the existing one.
+    assert( keySpaceSize == srcKeySpace.length )
+
+    keyCount = newKeyCount
+    usedKeySpace = newUsedKeySpace
+    keyLength = newKeyLength
+
+    // copy key and data.
+    System.arraycopy( srcKeySpace, srcKeySpaceOffset, keySpace, 0, newUsedKeySpace)
+    System.arraycopy( srcDataArray, srcDataArrayOffset, dataArray, 0, newKeyCount)
+
+    assert( keyCount <= dataArray.length )
+  }
+
+
+  def split(rightHalf : SortedArray) = {
+
+    assert( rightHalf != null )
+    assert( rightHalf.keyCount == 0 )
+
+    // The split sorted array should have at least two keys.
+    assert( keyCount >= 2 )
+
+    // Calculate the new key count on the new right node.
+    val rightHalfKeyCount = keyCount >> 1 // key_count_ / 2
+    val rightHalfUsedKeySpace = rightHalfKeyCount * keyLength
+
+    // Calculate the new key count on this node.
+    val leftHalfKeyCount = keyCount - rightHalfKeyCount
+    val leftHalfUsedKeySpace = usedKeySpace - rightHalfUsedKeySpace
+
+    // Calculate the address of keySpace and data from where the rightHalf copies key and data.
+    val srcKeySpaceOffset = leftHalfUsedKeySpace
+    val srcDataArrayOffset = leftHalfKeyCount
+
+    // Copy the key and data.
+    rightHalf.init(
+      keyLength,
+      rightHalfKeyCount,
+      rightHalfUsedKeySpace,
+      keySpace,
+      srcKeySpaceOffset,
+      dataArray,
+      srcDataArrayOffset)
+
+    keyCount = leftHalfKeyCount
+    usedKeySpace = leftHalfUsedKeySpace
+
+    assert( keyCount > 0 )
+    assert( usedKeySpace > 0 )
+    assert( keyCount <= dataArray.length )
+    assert( usedKeySpace <= keySpaceSize )
   }
 
   def isEmpty() = usedKeySpace == 0

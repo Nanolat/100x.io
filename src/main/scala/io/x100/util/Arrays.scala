@@ -7,8 +7,11 @@ object Arrays {
   // TODO : Unit tests with same length, different lengths, etc.
   def compare(a : Array[Byte], aOffset : Int, aLength : Int,
               b : Array[Byte], bOffset : Int, bLength : Int): Int = {
-    assert(a != null)
-    assert(b != null)
+    if ( a == null || aOffset < 0 || aLength < 0 || aOffset + aLength > a.length)
+      throw new IllegalArgumentException()
+
+    if ( b == null || bOffset < 0 || bLength < 0 || bOffset + bLength > b.length)
+      throw new IllegalArgumentException()
 
     var i = 0
 
@@ -22,7 +25,7 @@ object Arrays {
       val bValue = b(bOffset+i)
 
       if ( aValue != bValue ) {
-        aValue - bValue
+        return aValue - bValue
       }
     }
     0

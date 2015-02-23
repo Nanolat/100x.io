@@ -89,6 +89,8 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
       val rightNode = NodeFactory.newLeafNode( keysWithValues.keyLength )
 
+      keysWithValues.split( rightNode.keysWithValues )
+
       // Check link consistency
       assert( this.prev == null || this.prev.next == this )
       assert( this.next == null || this.next.prev == this )
@@ -173,17 +175,16 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       assert( keysWithRightChildren.keyCount >= 3 )
 
       // Move half of keys in this node to "node".
-      val keysOnRightNode : SortedArray = keysWithRightChildren.split()
-      rightNode.keysWithRightChildren = keysOnRightNode
+      keysWithRightChildren.split( rightNode.keysWithRightChildren )
 
       // Update parent of the children who moved to rightNode.
       {
-        val iter = keysOnRightNode.Iterator()
-        keysOnRightNode.iterForward(iter)
+        val iter = rightNode.keysWithRightChildren.Iterator()
+        rightNode.keysWithRightChildren.iterForward(iter)
 
         var childNode : Node = null
         do {
-          val ( _ /* key */, child : Node) = keysOnRightNode.iterNext(iter)
+          val ( _ /* key */, child : Node) = rightNode.keysWithRightChildren.iterNext(iter)
           childNode = child
           if (childNode != null) {
             childNode.parent = rightNode
