@@ -532,6 +532,8 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     {
       (null, null)
     }
+
+    (key, data)
   }
 
   def iterPrev( iter : SortedArray#Iterator ) = {
@@ -554,6 +556,8 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     {
       (null, null)
     }
+
+    (key, data)
   }
 
   def mergeWith( sortedArray : SortedArray ): Unit = {
