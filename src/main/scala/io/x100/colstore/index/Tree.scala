@@ -316,7 +316,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     * @param key The key to put
     * @param value The value to put
     */
-  private def putToLeafNode(node: LeafNode, key: Array[Byte], value: AnyRef) {
+  private def putToLeafNode(node: LeafNode, key: Array[Byte], value: AnyRef) : Unit = {
     assert( node != null )
     assert( key != null )
     assert( value != null )
@@ -346,7 +346,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  private def delFromLeafNode(node: LeafNode, key: Array[Byte]) = {
+  private def delFromLeafNode(node: LeafNode, key: Array[Byte]) : Unit = {
     assert(node != null)
     assert(key != null)
     node.del(key)

@@ -242,8 +242,9 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
   private def setKeyDataAt( keyPos : Int, dataPos : Int, key : Array[Byte], data : AnyRef): Unit = {
     assert( keyPos >= 0 )
-    assert( dataPos >= 0 )
     assert( keyPos + keyLength <= keySpaceSize )
+    assert( dataPos >= 0 )
+    assert( dataPos < dataArray.length)
     assert( key != null )
     assert( data != null )
     assert( key.length == keyLength )
@@ -319,6 +320,20 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
     assert( keyCount <= dataArray.length )
     assert( usedKeySpace <= keySpaceSize )
+  }
+
+  // This is just for unit testing setKeyDataAt at SortedArrayPrivateSpec.
+  // It was necessary to call getKey and getData after calling setKeyDataAt.
+  private def increaseKeyCountForUnitTest(): Unit = {
+    keyCount += 1
+    usedKeySpace += keyLength
+  }
+
+  // This is just for unit testing setKeyDataAt at SortedArrayPrivateSpec.
+  // It was necessary to call getKey and getData after calling moveKeysLeftByTheKeyLengthFrom.
+  private def decreaseKeyCountForUnitTest(): Unit = {
+    keyCount -= 1
+    usedKeySpace -= keyLength
   }
 
   private def removeKeyDataAt(keyPos : Int, dataPos : Int ): Unit = {
