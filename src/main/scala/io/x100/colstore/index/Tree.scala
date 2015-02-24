@@ -14,15 +14,16 @@ object MagicValue extends Enumeration {
 import MagicValue._
 
 class VersionedTree(keySpaceSize : Int, keyLength : Int) {
+  assert(keySpaceSize / keyLength >= 2)
 
-  var rootNode: InternalNode = NodeFactory.newInternalNode(keyLength)
+  var rootNode: InternalNode = NodeFactory.newInternalNode()
 
-  rootNode.leftChild = NodeFactory.newLeafNode(keyLength)
+  rootNode.leftChild = NodeFactory.newLeafNode()
 
   class Node(val magic: MagicValue) {
 
-    var keyCount: Long = 0L
-    var parent: Node = null
+    //var keyCount: Long = 0L
+    var parent: VersionedTree#Node = null
 
     def isInternalNode() = {
       magic == INTERNAL_NODE_MAGIC
@@ -33,10 +34,8 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  class LeafNode(keyLength: KeyLength) extends Node(LEAF_NODE_MAGIC) {
+  class LeafNode extends Node(LEAF_NODE_MAGIC) {
     assert(isLeafNode())
-    assert(keyLength > 0)
-    assert(keySpaceSize / keyLength >= 2)
 
     // The sorted keys in an array. Each key has a mapping from a key to pointer of the value.
     val keysWithValues = new SortedArray(keySpaceSize, keyLength)
@@ -80,14 +79,14 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       keysWithValues.del(key)
     }
 
-    def mergeWith(node: LeafNode): Unit = {
+    def mergeWith(node: VersionedTree#LeafNode): Unit = {
       throw new UnsupportedFeature();
     }
 
     def split() = {
       assert( keysWithValues.keyCount >= 2 )
 
-      val rightNode = NodeFactory.newLeafNode( keysWithValues.keyLength )
+      val rightNode = NodeFactory.newLeafNode()
 
       keysWithValues.split( rightNode.keysWithValues )
 
@@ -110,12 +109,12 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  class InternalNode(keyLength: KeyLength) extends Node(INTERNAL_NODE_MAGIC) {
+  class InternalNode extends Node(INTERNAL_NODE_MAGIC) {
     // The sorted keys in an array. Each key has a mapping from a key to pointer of the value.
     var keysWithRightChildren = new SortedArray(keySpaceSize, keyLength)
 
     // The child node which has keys less than than the first key.
-    var leftChild: Node = null
+    var leftChild: VersionedTree#Node = null
 
     def isEmpty() = keysWithRightChildren.isEmpty()
 
@@ -123,7 +122,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
     def minKey() = keysWithRightChildren.minKey()
 
-    def put(key: Array[Byte], node: Node): Unit = {
+    def put(key: Array[Byte], node: VersionedTree#Node): Unit = {
       keysWithRightChildren.put(key, node)
       node.parent = this
     }
@@ -138,7 +137,8 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     def findServingNodeByKey(key: Array[Byte]) = {
       assert(key != null)
 
-      var (node:Node, nodePosition) = keysWithRightChildren.findLastLeKey(key)
+      val (data, nodePosition) = keysWithRightChildren.findLastLeKey(key)
+      var node = data.asInstanceOf[VersionedTree#Node]
 
       // keysWithRightChildren does not have the serving node for the key.
       // IOW, all keys in keysWithRightChildren are greater than the given key.
@@ -151,10 +151,10 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       node
     }
 
-    def del(key: Array[Byte]): AnyRef = {
+    def del(key: Array[Byte]): VersionedTree#Node = {
       assert(key != null)
 
-      val node = keysWithRightChildren.del(key).asInstanceOf[Node]
+      val node = keysWithRightChildren.del(key).asInstanceOf[VersionedTree#Node]
 
       if (node != null)
         node.parent = null
@@ -162,12 +162,12 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       node
     }
 
-    def mergeWith(node: InternalNode): Unit = {
+    def mergeWith(node: VersionedTree#InternalNode): Unit = {
       throw new UnsupportedFeature()
     }
 
     def split() = {
-      var rightNode = NodeFactory.newInternalNode( keysWithRightChildren.keyLength )
+      var rightNode = NodeFactory.newInternalNode()
 
       // An internal node should have at least two keys before the split operation
       // The original node should have at least three keys.
@@ -184,8 +184,8 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
         var childNode : Node = null
         do {
-          val ( _ /* key */, child : Node) = rightNode.keysWithRightChildren.iterNext(iter)
-          childNode = child
+          val ( _ /* key */, child) = rightNode.keysWithRightChildren.iterNext(iter)
+          childNode = child.asInstanceOf[Node]
           if (childNode != null) {
             childNode.parent = rightNode
           }
@@ -205,17 +205,17 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  case class Iterator(var currentNode: LeafNode, var keyIter: SortedArray#Iterator)
+  case class Iterator(var currentNode: VersionedTree#LeafNode, var keyIter: SortedArray#Iterator)
 
   object NodeFactory {
-    def newLeafNode(keyLength: KeyLength) = {
+    def newLeafNode() = {
       assert(keyLength > 0)
-      new LeafNode(keyLength)
+      new LeafNode()
     }
 
-    def newInternalNode(keyLength: KeyLength) = {
+    def newInternalNode() = {
       assert(keyLength > 0)
-      new InternalNode(keyLength)
+      new InternalNode()
     }
   }
 
@@ -231,11 +231,11 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   private def findLeafNode(key: Array[Byte]) = {
     assert( key != null )
 
-    var node: LeafNode = null
+    var node: VersionedTree#LeafNode = null
 
-    var n : Node = rootNode
+    var n : VersionedTree#Node = rootNode
     while( n.isInternalNode() ) {
-      val internalNode : InternalNode = n.asInstanceOf[InternalNode]
+      val internalNode : VersionedTree#InternalNode = n.asInstanceOf[VersionedTree#InternalNode]
 
       n = internalNode.findServingNodeByKey( key )
     }
@@ -248,7 +248,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     * @param key The key to put into the internal node.
     * @param keyNode The key node that the key will point to.
     */
-  private def putToInternalNode(node: InternalNode, key: Array[Byte], keyNode: Node): Unit = {
+  private def putToInternalNode(node: VersionedTree#InternalNode, key: Array[Byte], keyNode: VersionedTree#Node): Unit = {
     assert(node != null)
     assert(key != null)
     assert(keyNode != null)
@@ -270,7 +270,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       else // root node
       {
         // create a new root node
-        val newRootNode = NodeFactory.newInternalNode(keyLength)
+        val newRootNode = NodeFactory.newInternalNode()
 
         // Set the old root node as the left child of the new root node.
         // node.parent is set to newRootNode by this code.
@@ -316,7 +316,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     * @param key The key to put
     * @param value The value to put
     */
-  private def putToLeafNode(node: LeafNode, key: Array[Byte], value: AnyRef) : Unit = {
+  private def putToLeafNode(node: VersionedTree#LeafNode, key: Array[Byte], value: AnyRef) : Unit = {
     assert( node != null )
     assert( key != null )
     assert( value != null )
@@ -346,7 +346,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  private def delFromLeafNode(node: LeafNode, key: Array[Byte]) : Unit = {
+  private def delFromLeafNode(node: VersionedTree#LeafNode, key: Array[Byte]) : Unit = {
     assert(node != null)
     assert(key != null)
     node.del(key)
