@@ -16,12 +16,14 @@ import MagicValue._
 class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   assert(keyLength > 0)
   assert(keySpaceSize > 0)
-  assert(keySpaceSize / keyLength >= 2)
+  assert(keySpaceSize % keyLength == 0)
+
+  // Internal nodes should be able to store at least three keys.
+  assert(keySpaceSize / keyLength >= 3)
 
   var rootNode: InternalNode = NodeFactory.newInternalNode()
 
   rootNode.leftChild = NodeFactory.newLeafNode()
-  //rootNode.leftChild.parent = rootNode
 
   /**
    * Write a give number(indent) of spaces to a string buffer.
@@ -120,11 +122,13 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
       // The parent is not set yet.
       // It can be set after the min key of the new node is put into a parent node.
-      // However, we can't guarantee that node->parent is new_node's parent
-      // because the node->parent may split while putting the min key of the new node into it.
+      // However, we can't guarantee that node.parent is new_node's parent
+      // because the node.parent may split while putting the min key of the new node into it.
 
       if ( this.next != null )
         this.next.prev = rightNode
+
+      this.next = rightNode
 
       rightNode
     }
@@ -163,7 +167,14 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     var keysWithRightChildren = new SortedArray(keySpaceSize, keyLength)
 
     // The child node which has keys less than than the first key.
-    var leftChild: VersionedTree#Node = null
+    private var leftChild_ : VersionedTree#Node = null
+
+    def leftChild = leftChild_
+
+    def leftChild_=(node : VersionedTree#Node): Unit = {
+      leftChild_ = node
+      leftChild_.parent = this
+    }
 
     def isEmpty() = keysWithRightChildren.isEmpty()
 
@@ -194,7 +205,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       // In this case, the left child of this node should serve the key in this case.
       if (node == null) {
         assert(nodePosition == -1)
-        node = leftChild
+        node = leftChild_
       }
 
       node
@@ -242,13 +253,13 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       }
 
       // The key in the middle between the two split nodes.
-      val (midKey, midKeyNode:Node) = keysWithRightChildren.removeMaxKey()
+      val (midKey, midKeyNode) = keysWithRightChildren.removeMaxKey()
 
       // Even after removing the maximum key, the node should have at least a key.
       assert( keysWithRightChildren.keyCount > 0 )
 
       // Set the node attached with the mid key to the left child of the new split node.
-      rightNode.leftChild = midKeyNode
+      rightNode.leftChild = midKeyNode.asInstanceOf[Node]
 
       (rightNode, midKey)
     }
@@ -357,7 +368,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
         // Set the old root node as the left child of the new root node.
         // node.parent is set to newRootNode by this code.
         newRootNode.leftChild = node
-        node.parent = newRootNode
+
         // Set the right node as the 2nd child of the new root node.
         newRootNode.put(midKey, rightNode)
 
@@ -389,7 +400,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     else
     {
       // put the key into the parent node. This code also sets the keyNode's parent.
-      node->put(key, keyNode)
+      node.put(key, keyNode)
     }
 
   }
@@ -403,12 +414,11 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     assert( node != null )
     assert( key != null )
     assert( value != null )
-
+    assert( ! value.isInstanceOf[Node] )
 
     if ( node.isFull() )
     {
       val rightNode = node.split();
-      assert( rightNode != null )
 
       val midKey = rightNode.minKey();
 
@@ -502,6 +512,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       if (iter.currentNode != null) {
         iter.currentNode.keysWithValues.iterForward(iter.keyIter)
         val (key, value) = iter.currentNode.keysWithValues.iterNext(iter.keyIter)
+        // If it is end of iteration, following line will return (null, null)
         (key, value)
       } else {
         // No more keys to iterate
@@ -524,7 +535,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     if (key == null) {
       // No more keys to iterate
       // Move to next leaf node
-      iter.currentNode = iter.currentNode.next
+      iter.currentNode = iter.currentNode.prev
 
       if (iter.currentNode != null) {
         iter.currentNode.keysWithValues.iterBackward(iter.keyIter)

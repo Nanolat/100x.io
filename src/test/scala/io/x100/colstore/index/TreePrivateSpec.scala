@@ -41,7 +41,7 @@ class TreePrivateSpec extends FlatSpec with ShouldMatchers with TreeTestTrait {
 
   /**********************************************************************************************************/
   "findLeafNode" should "work" in {
-//    putKeys(0, 10)
+    putKeys(0, 10)
 //    assertLeafNode(0, 255)
   }
 
