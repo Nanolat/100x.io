@@ -40,7 +40,7 @@ class SortedArraySearchSpec extends FlatSpec with ShouldMatchers with PrivateMet
   val searchBackward = PrivateMethod[(Int, Int, Boolean)]('searchBackward)
 
   case class TestCase(val searchKey : String, val expectedKeyPos : Int, val expectedDataPos : Int, val expectedKeyFound : Boolean)
-
+/*
   "searchForward" should "find the correct key and data position." in {
     // See the comment of searchForward why keys should return these keyPos and dataPos.
     val testCases = Array(
@@ -86,6 +86,12 @@ class SortedArraySearchSpec extends FlatSpec with ShouldMatchers with PrivateMet
       assert( dataPos == tcase.expectedDataPos)
       assert( keyFound == tcase.expectedKeyFound)
     }
+  }
+*/
+
+  /**********************************************************************************************************/
+  "findLastLeKey" should "work" in  {
+
   }
 
 }

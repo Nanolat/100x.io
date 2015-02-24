@@ -24,17 +24,17 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   private var usedKeySpace = 0
 
   private def compareKeys(key : Array[Byte], keySpace : Array[Byte], offset : Int) = {
-    assert( keyLength > 0 )
     assert(key != null)
     assert(keySpace != null)
+    assert( keyLength > 0 )
     assert(key.length == keyLength)
 
     Arrays.compare(key, 0, keyLength, keySpace, offset, keyLength)
   }
 
   case class Iterator() {
-    var keyPos : Int = -1
-    var dataPos : Int = -1
+    var keyPos : Int = 0
+    var dataPos : Int = 0
   }
 
   private def nextKey(iter : SortedArray#Iterator): Unit = {
@@ -183,6 +183,10 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     dataArray(dataPos) = data
   }
 
+  private def getData(dataPos : Int) = {
+    dataArray(dataPos)
+  }
+
   private def getKey(keyPos : Int) = {
     assert( keyPos >= 0 )
     assert( keyPos + keyLength <= usedKeySpace )
@@ -239,7 +243,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   private def setKeyDataAt( keyPos : Int, dataPos : Int, key : Array[Byte], data : AnyRef): Unit = {
     assert( keyPos >= 0 )
     assert( dataPos >= 0 )
-    assert( keyPos + keyLength < keySpaceSize )
+    assert( keyPos + keyLength <= keySpaceSize )
     assert( key != null )
     assert( data != null )
     assert( key.length == keyLength )
@@ -348,10 +352,6 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
   def destroy(): Unit = {
     // Do nothing
-  }
-
-  def getData(dataPos : Int) = {
-    dataArray(dataPos)
   }
 
   def put(key : Array[Byte], data : AnyRef) : Unit = {
