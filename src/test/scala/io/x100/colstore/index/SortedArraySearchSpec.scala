@@ -87,11 +87,11 @@ class SortedArraySearchSpec extends FlatSpec with ShouldMatchers with PrivateMet
       assert( keyFound == tcase.expectedKeyFound)
     }
   }
-*/
 
   /**********************************************************************************************************/
   "findLastLeKey" should "work" in  {
 
   }
+*/
 
 }

@@ -31,7 +31,7 @@ trait SortedArrayInstance extends BeforeAndAfterEach { this : Suite =>
 /**
  * Created by unknown on 2/23/15.
  */
-class SortedArraySpec extends FlatSpec with ShouldMatchers with PrivateMethodTester with SortedArrayInstance {
+class SortedArrayPrivateSpec extends FlatSpec with ShouldMatchers with PrivateMethodTester with SortedArrayInstance {
 
   /**********************************************************************************************************/
   // Private methods
