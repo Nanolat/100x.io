@@ -6,7 +6,7 @@ package io.x100.colstore.index
 import io.x100.TestUtil._
 import org.scalatest.PrivateMethodTester.PrivateMethod
 import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{Suite, PrivateMethodTester, BeforeAndAfterEach}
+import org.scalatest._
 
 trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with ShouldMatchers {
   this: Suite =>
@@ -68,7 +68,8 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
       val key = i2key(i)
       put( key )
       //info (s"put($key)")
-      //info( tree.toString() )
+      // To improve test coverage :-)
+      val dummy = tree.toString()
     }
   }
 
