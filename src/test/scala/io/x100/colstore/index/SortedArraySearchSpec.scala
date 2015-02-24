@@ -16,9 +16,9 @@ trait SortedArrayForSearch extends BeforeAndAfterEach { this : Suite =>
 
     // We will put 03, 05, 07 into the sorted array
     // to test if keys from 01 to 09 are all searched correctly as shown on the comment of searchForward and searchBackward function.
-    sarray.put(Arr("05"), new Integer(3))
-    sarray.put(Arr("03"), new Integer(3))
-    sarray.put(Arr("07"), new Integer(3))
+    sarray.put(Arr("05"), new Integer(5))
+//    sarray.put(Arr("03"), new Integer(3))
+//    sarray.put(Arr("07"), new Integer(7))
 
     super.beforeEach();
   }
@@ -87,11 +87,11 @@ class SortedArraySearchSpec extends FlatSpec with ShouldMatchers with PrivateMet
       assert( keyFound == tcase.expectedKeyFound)
     }
   }
+*/
 
   /**********************************************************************************************************/
   "findLastLeKey" should "work" in  {
 
   }
-*/
 
 }
