@@ -6,6 +6,12 @@ import io.x100.util.Arrays
 import scala.collection.mutable
 import io.x100.colstore.Types._
 
+case class SortedArrayIterator() {
+  var isForward : Boolean = false
+  var keyPos : Int = 0
+  var dataPos : Int = 0
+}
+
 /**
  * Created by unknown on 2/20/15.
  */
@@ -31,19 +37,13 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
     Arrays.compare(key, 0, keyLength, keySpace, offset, keyLength)
   }
-
-  case class Iterator() {
-    var isForward : Boolean = false
-    var keyPos : Int = 0
-    var dataPos : Int = 0
-  }
-
-  private def nextKey(iter : SortedArray#Iterator): Unit = {
+  
+  private def nextKey(iter : SortedArrayIterator): Unit = {
     iter.keyPos += keyLength
     iter.dataPos += 1
   }
 
-  private def prevKey(iter : SortedArray#Iterator): Unit = {
+  private def prevKey(iter : SortedArrayIterator): Unit = {
     iter.keyPos -= keyLength
     iter.dataPos -= 1
   }
@@ -477,7 +477,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     (key, data)
   }
 
-  def iterForward( iter :  SortedArray#Iterator, key : Array[Byte]): Unit = {
+  def iterForward( iter :  SortedArrayIterator, key : Array[Byte]): Unit = {
     assert( iter != null )
     assert( key != null )
 
@@ -496,7 +496,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     }
   }
 
-  def iterBackward( iter :  SortedArray#Iterator, key : Array[Byte] ): Unit = {
+  def iterBackward( iter :  SortedArrayIterator, key : Array[Byte] ): Unit = {
     assert( iter != null )
     assert( key != null )
 
@@ -517,7 +517,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   }
 
   // Iterate forward for all keys within the sorted array.
-  def iterForward( iter : SortedArray#Iterator ): Unit = {
+  def iterForward( iter : SortedArrayIterator ): Unit = {
     assert( iter != null )
 
     iter.isForward = true
@@ -525,7 +525,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     iter.dataPos = 0
   }
 
-  def iterBackward( iter : SortedArray#Iterator ): Unit = {
+  def iterBackward( iter : SortedArrayIterator ): Unit = {
     assert( iter != null )
 
     iter.isForward = false
@@ -533,7 +533,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     iter.dataPos = keyCount - 1
   }
 
-  def iterNext( iter : SortedArray#Iterator ) = {
+  def iterNext( iter : SortedArrayIterator ) = {
     assert( iter != null )
     assert( iter.keyPos >=0 )
     assert( iter.dataPos >= 0 )
@@ -559,7 +559,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     (key, data)
   }
 
-  def iterPrev( iter : SortedArray#Iterator ) = {
+  def iterPrev( iter : SortedArrayIterator ) = {
     assert( iter != null )
     assert( iter.keyPos + keyLength <= usedKeySpace )
     assert( iter.dataPos < keyCount )

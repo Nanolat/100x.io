@@ -199,7 +199,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     }
 
     // Initialize iterator
-    val iter = sarray.Iterator()
+    val iter = SortedArrayIterator()
     findingKey match {
       case Some(key) => sarray.iterForward(iter, Arr(key) )
       case None => sarray.iterForward(iter)
@@ -233,7 +233,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     }
 
     // Initialize iterator
-    val iter = sarray.Iterator()
+    val iter = SortedArrayIterator()
     findingKey match {
       case Some(key) => sarray.iterBackward(iter, Arr(key) )
       case None => sarray.iterBackward(iter)
@@ -501,7 +501,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     // without specifying a search key
     {
       put("ab")
-      val iter = sarray.Iterator()
+      val iter = SortedArrayIterator()
       sarray.iterForward(iter)
       a [java.lang.IllegalStateException] should be thrownBy( sarray.iterPrev(iter) )
     }
@@ -509,7 +509,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     // with a search key
     {
       put("ab")
-      val iter = sarray.Iterator()
+      val iter = SortedArrayIterator()
       sarray.iterForward(iter, Arr("ab"))
       a [java.lang.IllegalStateException] should be thrownBy( sarray.iterPrev(iter) )
     }
@@ -519,7 +519,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     // without specifying a search key
     {
       put("ab")
-      val iter = sarray.Iterator()
+      val iter = SortedArrayIterator()
       sarray.iterBackward(iter)
       a [java.lang.IllegalStateException] should be thrownBy( sarray.iterNext(iter) )
     }
@@ -527,7 +527,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     // with a search key
     {
       put("ab")
-      val iter = sarray.Iterator()
+      val iter = SortedArrayIterator()
       sarray.iterBackward(iter, Arr("ab"))
       a [java.lang.IllegalStateException] should be thrownBy( sarray.iterNext(iter) )
     }

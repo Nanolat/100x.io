@@ -13,6 +13,12 @@ object MagicValue extends Enumeration {
 }
 import MagicValue._
 
+case class VersionedTreeIterator() {
+  var isForward : Boolean = false
+  var currentNode: VersionedTree#LeafNode = null
+  val keyIter = SortedArrayIterator()
+}
+
 class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   assert(keyLength > 0)
   assert(keySpaceSize > 0)
@@ -142,7 +148,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       dumpIndent(buf, indent)
       buf.append("======= <Leaf> =======\n")
 
-      val iter = keysWithValues.Iterator()
+      val iter = SortedArrayIterator()
       keysWithValues.iterForward(iter)
 
       var endOfIteration = false
@@ -239,7 +245,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
       // Update parent of the children who moved to rightNode.
       {
-        val iter = rightNode.keysWithRightChildren.Iterator()
+        val iter = SortedArrayIterator()
         rightNode.keysWithRightChildren.iterForward(iter)
 
         var childNode : Node = null
@@ -278,7 +284,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       buf.append("leftChild : \n")
       leftChild.dump(buf, indent + indentPerLevel)
 
-      val iter = keysWithRightChildren.Iterator()
+      val iter = SortedArrayIterator()
       keysWithRightChildren.iterForward(iter)
 
       var endOfIteration = false
@@ -301,8 +307,6 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
     }
   }
-
-  case class Iterator(var currentNode: VersionedTree#LeafNode, var keyIter: SortedArray#Iterator)
 
   object NodeFactory {
     def newLeafNode() = {
@@ -475,23 +479,26 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     deletedValue
   }
 
-  def seekForward(iter: Iterator, key: Array[Byte]) = {
+  def seekForward(iter: VersionedTreeIterator, key: Array[Byte]) = {
     assert(iter != null)
     assert(key != null)
 
+    iter.isForward = true
     val leafNode = findLeafNode(key)
     iter.currentNode = leafNode
 
     leafNode.keysWithValues.iterForward(iter.keyIter, key)
   }
 
-  def seekBackward(iter: Iterator, key: Array[Byte]) = {
+  def seekBackward(iter: VersionedTreeIterator, key: Array[Byte]) = {
     assert(iter != null)
     assert(key != null)
 
+    iter.isForward = false
+
     val leafNode = findLeafNode(key)
     iter.currentNode = leafNode
-    val keyIyer: SortedArray#Iterator = iter.keyIter;
+    val keyIyer: SortedArrayIterator = iter.keyIter;
 
     leafNode.keysWithValues.iterBackward(keyIyer, key)
   }
@@ -501,7 +508,9 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
    * @param iter The iterator we are working on
    * @return (key, value). key is not null if the key exists to iterate. Otherwise it is null.
    */
-  def moveForward(iter: Iterator) = {
+  def moveForward(iter: VersionedTreeIterator) = {
+    if (!iter.isForward) throw new IllegalStateException()
+
     val keysWithValues = iter.currentNode.keysWithValues
     val (key, value) = keysWithValues.iterNext(iter.keyIter)
     if (key == null) {
@@ -529,7 +538,9 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
    * @param iter The iterator we are working on
    * @return (key, value). key is not null if the key exists to iterate. Otherwise it is null.
    */
-  def moveBackward(iter: Iterator) = {
+  def moveBackward(iter: VersionedTreeIterator) = {
+    if (iter.isForward) throw new IllegalStateException()
+
     val keysWithValues = iter.currentNode.keysWithValues
     val (key, value) = keysWithValues.iterPrev(iter.keyIter)
     if (key == null) {
