@@ -104,7 +104,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     var offset = 0
     var cmp = 0
     while ( offset < usedKeySpace && cmp >= 0 ) {
-      var cmp = compareKeys(key, keySpace, offset)
+      cmp = compareKeys(key, keySpace, offset)
       if (cmp >= 0) {
         prevCmp = cmp
 
@@ -160,7 +160,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     var offset = usedKeySpace - keyLength
     var cmp = 0
     while ( offset >= 0 && cmp <= 0 ) {
-      var cmp = compareKeys(key, keySpace, offset)
+      cmp = compareKeys(key, keySpace, offset)
       if (cmp <= 0) {
         prevCmp = cmp
 
