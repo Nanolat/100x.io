@@ -18,16 +18,6 @@ class TreePrivateSpec extends FlatSpec with ShouldMatchers with TreeTestTrait {
     tree invokePrivate compareKeys(Arr("ax"), Arr("ab")) should be > 0
   }
 
-  def putKeys(min : Int, max : Int): Unit = {
-    // Generate keys with two characters from a0 to ff.
-    (min to max) map { i =>
-      val key = "%02x" format i
-      put( key )
-      info (s"put($key)")
-      info( tree.toString() )
-    }
-  }
-
   def assertLeafNode(min : Int, max : Int) : Unit = {
     (min to max) map { i =>
       val key = "%02x" format i
@@ -41,17 +31,13 @@ class TreePrivateSpec extends FlatSpec with ShouldMatchers with TreeTestTrait {
 
   /**********************************************************************************************************/
   "findLeafNode" should "work" in {
-    putKeys(0, 10)
-//    assertLeafNode(0, 255)
+    putKeys(0, 255)
+    assertLeafNode(0, 255)
   }
 
   /**********************************************************************************************************/
   "putToInternalNode" should "work" in {
 
-    tree invokePrivate putToInternalNode( inode, Arr("ab"),new t.LeafNode())
-    tree invokePrivate putToInternalNode( inode, Arr("cd"),new t.LeafNode())
-    tree invokePrivate putToInternalNode( inode, Arr("ef"),new t.LeafNode())
-    tree invokePrivate putToInternalNode( inode, Arr("gh"),new t.LeafNode())
   }
 
   /**********************************************************************************************************/

@@ -58,4 +58,41 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
   def del(key : String) = {
     tree.del( Arr(key) )
   }
+
+  def putKeys(min : Int, max : Int): Unit = {
+    // Generate keys with two characters from a0 to ff.
+    (min to max) map { i =>
+      val key = "%02x" format i
+      put( key )
+      //info (s"put($key)")
+      //info( tree.toString() )
+    }
+  }
+
+  def assertGetKeys(min : Int, max : Int, filterOption:Option[(Int=>Boolean)] = None ): Unit = {
+    // Generate keys with two characters from a0 to ff.
+    (min to max) map { i =>
+      val key = "%02x" format i
+      val expectedData = filterOption match {
+        // If the filter evaluates to false, it means the key should not exist, meaning expectedData is null.
+        case Some(filter) => if (filter(i)) key else null
+        case None => key
+      }
+
+      get( key ) should be (expectedData)
+    }
+  }
+
+  def delKeys(min : Int, max : Int, filterOption:Option[(Int=>Boolean)] = None): Unit = {
+    // Generate keys with two characters from a0 to ff.
+    (min to max) map { i =>
+      // In case a filter is provided, delete a key only if the filter evaluates to true.
+      if ( filterOption match { case Some(filter) => filter(i); case None => true } ) {
+        val key = "%02x" format i
+        del(key)
+        //info (s"put($key)")
+        //info( tree.toString() )
+      }
+    }
+  }
 }
