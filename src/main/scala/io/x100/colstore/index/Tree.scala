@@ -14,11 +14,26 @@ object MagicValue extends Enumeration {
 import MagicValue._
 
 class VersionedTree(keySpaceSize : Int, keyLength : Int) {
+  assert(keyLength > 0)
+  assert(keySpaceSize > 0)
   assert(keySpaceSize / keyLength >= 2)
 
   var rootNode: InternalNode = NodeFactory.newInternalNode()
 
   rootNode.leftChild = NodeFactory.newLeafNode()
+  //rootNode.leftChild.parent = rootNode
+
+  /**
+   * Write a give number(indent) of spaces to a string buffer.
+   * This function is for printing the tree for debugging purpose.
+   * @param buf The string buffer
+   * @param indent The number of spaces to write.
+   */
+  private def dumpIndent(buf : StringBuffer, indent : Int): Unit =  {
+    buf.append(" " * indent)
+  }
+  // When printing the tree, we indent two spaces for children of a node.
+  private val indentPerLevel = 2
 
   class Node(val magic: MagicValue) {
 
@@ -31,6 +46,12 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
     def isLeafNode() = {
       magic == LEAF_NODE_MAGIC
+    }
+
+    def dump(buf : StringBuffer, indent : Int) {
+      // This function should never be invoked.
+      // We can make it abstract, but keeping it with a dummy body, to write unit test of this class without sub-classing.
+      assert(false)
     }
   }
 
@@ -106,6 +127,34 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
         this.next.prev = rightNode
 
       rightNode
+    }
+
+    /**
+     * Dump the leaf node object
+     * @param buf The StringBuilder where we write the dump data.
+     * @param indent The indentation to print each sibling node in a tree aligned to a column on console. :-)
+     */
+    override def dump(buf : StringBuffer, indent : Int) = {
+      dumpIndent(buf, indent)
+      buf.append("======= <Leaf> =======\n")
+
+      val iter = keysWithValues.Iterator()
+      keysWithValues.iterForward(iter)
+
+      var endOfIteration = false
+      do {
+        val ( key, data ) = keysWithValues.iterNext(iter)
+
+        if (key == null)
+          endOfIteration = true
+        else {
+          dumpIndent(buf, indent)
+          buf.append(s"K:${new String(key)}, V:$data\n")
+        }
+      } while ( ! endOfIteration )
+
+      dumpIndent(buf, indent)
+      buf.append("----------------------\n")
     }
   }
 
@@ -203,18 +252,53 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
       (rightNode, midKey)
     }
+
+    /**
+     * Dump the internal node object
+     * @param buf The StringBuilder where we write the dump data.
+     * @param indent The indentation to print each sibling node in a tree aligned to a column on console. :-)
+     */
+    override def dump(buf : StringBuffer, indent : Int) = {
+      dumpIndent(buf, indent)
+      buf.append("===== <Internal> =====\n")
+
+
+      dumpIndent(buf, indent)
+      buf.append("leftChild : \n")
+      leftChild.dump(buf, indent + indentPerLevel)
+
+      val iter = keysWithRightChildren.Iterator()
+      keysWithRightChildren.iterForward(iter)
+
+      var endOfIteration = false
+      do {
+        val ( key, data ) = keysWithRightChildren.iterNext(iter)
+        val node = data.asInstanceOf[VersionedTree#Node]
+
+        if (key == null)
+          endOfIteration = true
+        else {
+          dumpIndent(buf, indent)
+          buf.append(s"child(K:${new String(key)}) :\n")
+          node.dump(buf, indent + indentPerLevel)
+        }
+
+      } while ( ! endOfIteration )
+
+      dumpIndent(buf, indent)
+      buf.append("----------------------\n")
+
+    }
   }
 
   case class Iterator(var currentNode: VersionedTree#LeafNode, var keyIter: SortedArray#Iterator)
 
   object NodeFactory {
     def newLeafNode() = {
-      assert(keyLength > 0)
       new LeafNode()
     }
 
     def newInternalNode() = {
-      assert(keyLength > 0)
       new InternalNode()
     }
   }
@@ -231,16 +315,14 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   private def findLeafNode(key: Array[Byte]) = {
     assert( key != null )
 
-    var node: VersionedTree#LeafNode = null
+    var node : VersionedTree#Node = rootNode
+    while( node.isInternalNode() ) {
+      val internalNode = node.asInstanceOf[VersionedTree#InternalNode]
 
-    var n : VersionedTree#Node = rootNode
-    while( n.isInternalNode() ) {
-      val internalNode : VersionedTree#InternalNode = n.asInstanceOf[VersionedTree#InternalNode]
-
-      n = internalNode.findServingNodeByKey( key )
+      node = internalNode.findServingNodeByKey( key )
     }
 
-    node
+    node.asInstanceOf[VersionedTree#LeafNode]
   }
 
   /** Put a key into an internal node. Let the key point to another node.
@@ -275,6 +357,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
         // Set the old root node as the left child of the new root node.
         // node.parent is set to newRootNode by this code.
         newRootNode.leftChild = node
+        node.parent = newRootNode
         // Set the right node as the 2nd child of the new root node.
         newRootNode.put(midKey, rightNode)
 
@@ -350,6 +433,8 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     assert(node != null)
     assert(key != null)
     node.del(key)
+
+    // BUGBUG : Check if we need to propagate the deletion up to parents if the key was minKey of the node.
   }
 
   def put(key: Array[Byte], value: AnyRef): Unit = {
@@ -452,5 +537,11 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     } else {
       (key, value)
     }
+  }
+
+  override def toString() = {
+    val buf = new StringBuffer()
+    rootNode.dump(buf, 0)
+    buf.toString()
   }
 }
