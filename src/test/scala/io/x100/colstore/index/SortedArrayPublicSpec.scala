@@ -1,34 +1,11 @@
 package io.x100.colstore.index
 
-import org.scalatest.{Suite, BeforeAndAfterEach, PrivateMethodTester, FlatSpec}
+import org.scalatest.{Suite, BeforeAndAfterEach, FlatSpec}
 import org.scalatest.matchers.ShouldMatchers
 import io.x100._
 
 import io.x100.TestUtil.Arr
 
-trait SortedArrayInstanceTrait extends BeforeAndAfterEach {
-  this: Suite =>
-  val keySpaceSize = 6
-  val keyLength = 2
-  var sarray: SortedArray = null
-
-  def newArray = new SortedArray(keySpaceSize = 6, keyLength = 2)
-
-  override def beforeEach() {
-    // set-up code
-    //
-    sarray = newArray
-
-    super.beforeEach();
-  }
-
-  override def afterEach() {
-    super.beforeEach();
-    // tear-down code
-    //
-    sarray = null
-  }
-}
 
 /**
  * Created by unknown on 2/23/15.
@@ -112,6 +89,8 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     get("ef") should be (null)
   }
 
+  /**********************************************************************************************************/
+
   "put" should "replace the existing data" in {
     put("ab")
     get("ab") should be ("ab")
@@ -123,6 +102,15 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     }
   }
 
+  it should "hit an assertion failure if too many keys are put" in {
+    put("ab")
+    put("cd")
+    put("ef")
+    a [java.lang.AssertionError] should be thrownBy ( put("xx") )
+  }
+
+  /**********************************************************************************************************/
+
   "del" should "return null if the key does not exist" in {
     put("ab")
     put("cd")
@@ -131,6 +119,8 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     del("cx") should be (null)
     del("ex") should be (null)
   }
+
+  /**********************************************************************************************************/
 
   "removeMaxKey" should "work" in {
     put("ab")
@@ -161,6 +151,8 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     }
   }
 
+  /**********************************************************************************************************/
+
   "split" should "work with two keys" in {
     put("ab")
     put("cd")
@@ -172,7 +164,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     assertStatus(rightArray, 1, isEmpty=false, isFull=false, "cd")
   }
 
-  "split" should "work with three keys" in {
+  it should "work with three keys" in {
     put("ab")
     put("cd")
     put("ef")
@@ -184,16 +176,360 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     assertStatus(rightArray, 1, isEmpty=false, isFull=false, "ef")
   }
 
-  "split" should "hit an assertion with a key" in {
+  it should "hit an assertion with a key" in {
     put("ab")
     val rightArray = newArray
     a [java.lang.AssertionError] should be thrownBy ( sarray.split(rightArray) )
   }
 
+  /**********************************************************************************************************/
+
   "mergeWith" should "throw the UnsupportedFeature exception" in {
     the [UnsupportedFeature] thrownBy {
       val sarray2 = new SortedArray(keySpaceSize = 6, keyLength = 2)
       sarray.mergeWith(sarray2)
+    }
+  }
+
+  def testForwardIterator(keys : Array[String], expectedKeys : Array[String], findingKey : Option[String] = None): Unit = {
+    sarray = newArray
+
+    keys.map { key =>
+      put(key)
+    }
+
+    // Initialize iterator
+    val iter = sarray.Iterator()
+    findingKey match {
+      case Some(key) => sarray.iterForward(iter, Arr(key) )
+      case None => sarray.iterForward(iter)
+    }
+
+    // Check (key,value) pair for each iteration.
+    expectedKeys.map {
+      expectedKey => {
+        sarray.iterNext(iter) match { case (key, data) => {
+            key should be ( Arr(expectedKey) )
+            val expectedValue = expectedKey
+            data should be (expectedValue)
+          }
+        }
+      }
+    }
+
+    // If we iterate once more, both key and value should be null
+    sarray.iterNext(iter) match { case (key, data) => {
+        key should be (null)
+        data should be (null)
+      }
+    }
+  }
+
+  def testBackwardIterator(keys : Array[String], expectedKeys : Array[String], findingKey : Option[String] = None): Unit = {
+    sarray = newArray
+
+    keys.map { key =>
+      put(key)
+    }
+
+    // Initialize iterator
+    val iter = sarray.Iterator()
+    findingKey match {
+      case Some(key) => sarray.iterBackward(iter, Arr(key) )
+      case None => sarray.iterBackward(iter)
+    }
+
+    // Check (key,value) pair for each iteration.
+    expectedKeys.map {
+      expectedKey => {
+        sarray.iterPrev(iter) match { case (key, data) => {
+          key should be ( Arr(expectedKey) )
+          val expectedValue = expectedKey
+          data should be (expectedValue)
+        }
+        }
+      }
+    }
+
+    // If we iterate once more, both key and value should be null
+    sarray.iterPrev(iter) match { case (key, data) => {
+      key should be (null)
+      data should be (null)
+    }
+    }
+  }
+
+
+  /**********************************************************************************************************/
+  "iterForward and iterNext" should "work with a key" in {
+    testForwardIterator(
+      keys = Array("ab"),
+      expectedKeys = Array( "ab" )
+    )
+  }
+
+  it should "work with two keys" in {
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      expectedKeys = Array( "ab", "cd" )
+    )
+  }
+
+  it should "work with three keys" in {
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      expectedKeys = Array( "ab", "cd", "ef" )
+    )
+  }
+
+  it should "work with a key starting from a key" in {
+    testForwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array( "ab" )
+    )
+
+    testForwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array( "ab" )
+    )
+
+    testForwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array()
+    )
+  }
+
+  it should "work with two keys starting from a key" in {
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array( "ab", "cd" )
+    )
+
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array( "ab", "cd" )
+    )
+
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array("cd")
+    )
+
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("cd"),
+      expectedKeys = Array("cd")
+    )
+
+    testForwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("cx"),
+      expectedKeys = Array()
+    )
+  }
+
+
+  it should "work with three keys starting from a key" in {
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array( "ab", "cd", "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array( "ab", "cd", "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array( "cd", "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("cd"),
+      expectedKeys = Array( "cd", "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("cx"),
+      expectedKeys = Array( "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ef"),
+      expectedKeys = Array( "ef" )
+    )
+
+    testForwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ex"),
+      expectedKeys = Array()
+    )
+  }
+
+  "iterBackward and iterPrev" should "work with a key" in {
+    testBackwardIterator(
+      keys = Array("ab"),
+      expectedKeys = Array( "ab" )
+    )
+  }
+
+  it should "work with two keys" in {
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      expectedKeys = Array( "cd", "ab" )
+    )
+  }
+
+
+  it should "work with three keys" in {
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab" ),
+      expectedKeys = Array( "ef", "cd", "ab" )
+    )
+  }
+
+  it should "work with a key starting from a key" in {
+    testBackwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array( "ab" )
+    )
+
+    testBackwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array( "ab" )
+    )
+
+    testBackwardIterator(
+      keys = Array("ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array()
+    )
+  }
+
+  it should "work with two keys starting from a key" in {
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("cx"),
+      expectedKeys = Array("cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("cd"),
+      expectedKeys = Array("cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array("ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array("ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("cd", "ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array()
+    )
+  }
+
+  it should "work with three keys starting from a key" in {
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ex"),
+      expectedKeys = Array("ef", "cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ef"),
+      expectedKeys = Array("ef", "cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("cx"),
+      expectedKeys = Array("cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("cd"),
+      expectedKeys = Array("cd", "ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ax"),
+      expectedKeys = Array("ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("ab"),
+      expectedKeys = Array("ab")
+    )
+
+    testBackwardIterator(
+      keys = Array("ef", "cd", "ab"),
+      findingKey = Some("a0"),
+      expectedKeys = Array()
+    )
+  }
+
+  "iterPrev after iterForward" should "throw an exception" in {
+    // without specifying a search key
+    {
+      put("ab")
+      val iter = sarray.Iterator()
+      sarray.iterForward(iter)
+      a [java.lang.IllegalStateException] should be thrownBy( sarray.iterPrev(iter) )
+    }
+
+    // with a search key
+    {
+      put("ab")
+      val iter = sarray.Iterator()
+      sarray.iterForward(iter, Arr("ab"))
+      a [java.lang.IllegalStateException] should be thrownBy( sarray.iterPrev(iter) )
+    }
+  }
+
+  "iterNext after iterBackward" should "throw an exception" in {
+    // without specifying a search key
+    {
+      put("ab")
+      val iter = sarray.Iterator()
+      sarray.iterBackward(iter)
+      a [java.lang.IllegalStateException] should be thrownBy( sarray.iterNext(iter) )
+    }
+
+    // with a search key
+    {
+      put("ab")
+      val iter = sarray.Iterator()
+      sarray.iterBackward(iter, Arr("ab"))
+      a [java.lang.IllegalStateException] should be thrownBy( sarray.iterNext(iter) )
     }
   }
 }

@@ -33,6 +33,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   }
 
   case class Iterator() {
+    var isForward : Boolean = false
     var keyPos : Int = 0
     var dataPos : Int = 0
   }
@@ -482,6 +483,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
     val ( keyPos, dataPos, keyFound ) = searchForward( key )
 
+    iter.isForward = true
     if (keyFound) {
       iter.keyPos = keyPos
       iter.dataPos = dataPos
@@ -500,6 +502,8 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
 
     val ( keyPos, dataPos, keyFound ) = searchBackward( key )
 
+    iter.isForward = false
+
     if (keyFound) {
       iter.keyPos = keyPos
       iter.dataPos = dataPos
@@ -516,6 +520,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   def iterForward( iter : SortedArray#Iterator ): Unit = {
     assert( iter != null )
 
+    iter.isForward = true
     iter.keyPos = 0
     iter.dataPos = 0
   }
@@ -523,6 +528,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   def iterBackward( iter : SortedArray#Iterator ): Unit = {
     assert( iter != null )
 
+    iter.isForward = false
     iter.keyPos = usedKeySpace - keyLength
     iter.dataPos = keyCount - 1
   }
@@ -531,6 +537,8 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     assert( iter != null )
     assert( iter.keyPos >=0 )
     assert( iter.dataPos >= 0 )
+
+    if ( ! iter.isForward ) throw new IllegalStateException();
 
     val (key, data) = if ( iter.keyPos < usedKeySpace )
     {
@@ -555,6 +563,8 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     assert( iter != null )
     assert( iter.keyPos + keyLength <= usedKeySpace )
     assert( iter.dataPos < keyCount )
+
+    if ( iter.isForward ) throw new IllegalStateException();
 
     val (key, data) = if ( iter.keyPos >= 0 )
     {
