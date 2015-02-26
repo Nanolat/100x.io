@@ -168,12 +168,12 @@ object SearchFiles {
           System.out.println("documentId="+hits(i).documentId+" score="+hits(i).score);
         } else {
           val doc : StoredDocument = searcher.document(hits(i).documentId);
-          val path : String = doc.get("path");
+          val path : String = doc.getFieldValue("path");
           if (path != null) {
             System.out.println((i+1) + ". " + path);
-            val title = doc.get("title");
+            val title = doc.getFieldValue("title");
             if (title != null) {
-              System.out.println("   Title: " + doc.get("title"));
+              System.out.println("   Title: " + doc.getFieldValue("title"));
             }
           } else {
             System.out.println((i+1) + ". " + "No path for this document");

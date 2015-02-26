@@ -170,7 +170,7 @@ object IndexFiles {
       // the field into separate words and don't index term frequency
       // or positional information:
       val pathField : Field = new StringField("path", file.toString() );
-      doc.add(pathField);
+      doc.addField(pathField);
 
       // Add the last modified date of the file a field named "modified".
       // Use a LongField that is indexed (i.e. efficiently filterable with
@@ -179,13 +179,13 @@ object IndexFiles {
       // year/month/day/hour/minutes/seconds, down the resolution you require.
       // For example the long value 2011021714 would mean
       // February 17, 2011, 2-3 PM.
-      doc.add(new LongField("modified", lastModified));
+      doc.addField(new LongField("modified", lastModified));
 
       // Add the contents of the file to a field named "contents".  Specify a Reader,
       // so that the text of the file is tokenized and indexed, but not stored.
       // Note that FileReader expects the file to be in UTF-8 encoding.
       // If that's not the case searching for special characters will fail.
-      doc.add(new TextField("contents", new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
+      doc.addField(new TextField("contents", new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
 
       if (writer.getConfig().getOpenMode() == IndexWriterOpenMode.CREATE) {
         // New index, so we just add the document (no old document can be there):

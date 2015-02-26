@@ -4,10 +4,10 @@ import java.io._
 ;
 import java.nio.file.Path;
 
-class StandardAnalyzer extends Analyzer {
+private final class StandardAnalyzer extends Analyzer {
 }
 
-object AnalyzerType extends Enumeration {
+final object AnalyzerType extends Enumeration {
   type AnalyzerType = Value
   val STANDARD = Value
 }
@@ -24,13 +24,22 @@ trait Analyzer {
 }
 
 trait Field {
+  val name : String
+  val value : Any = null
+  val stream : Reader = null
 }
 
-class LongField(name : String, value : Long) extends Field
-class StringField(name : String, value : String) extends Field
-class TextField(name : String, reader : Reader) extends Field
+private trait TokenStream {
+}
 
-object Document {
+final class IntField(override val name : String, override val value : Int) extends Field
+final class LongField(override val name : String, override val value : Long) extends Field
+final class FloatField(override val name : String, override val value : Float) extends Field
+final class DoubleField(override val name : String, override val value : Double) extends Field
+final class StringField(override val name : String, override val value : String) extends Field
+final class TextField(override val name : String, override val stream : Reader) extends Field
+
+final object Document {
   def create() : Document = {
     assert(false) // TODO : Implement
     null
@@ -38,17 +47,22 @@ object Document {
 }
 
 trait Document {
-  def add(field : Field) : Unit
+  def addField(field : Field) : Unit
+  def removeField(fieldName : String) : Unit
+  def removeFields(fieldName : String) : Unit
+  def getField(fieldName : String) : Field
+  def getFields(fieldName : String) : Seq[Field]
+  def getFields() : Seq[Field]
 }
 
-object IndexWriter {
+final object IndexWriter {
   def create(dir : Directory, config : IndexWriterConfig) : IndexWriter = {
     assert(false) // TODO : Implement
     null
   }
 }
 
-object IndexWriterOpenMode extends Enumeration {
+final object IndexWriterOpenMode extends Enumeration {
   type IndexWriterOpenMode = Value
   val CREATE, CREATE_OR_APPEND = Value
 }
@@ -62,7 +76,7 @@ trait IndexWriter {
   def updateDocument(term : Term, doc : Document) : Unit
 }
 
-object IndexWriterConfig {
+final object IndexWriterConfig {
   def create(analyzer : Analyzer) : IndexWriterConfig = {
     assert(false) // TODO : Implement
     null
@@ -74,20 +88,18 @@ trait IndexWriterConfig {
   def getOpenMode() : IndexWriterOpenMode
 }
 
-case class Term(field : String, text : String)
-
-class FileSystemDirectory(path : Path) extends Directory {
+private final class FileSystemDirectory(path : Path) extends Directory {
 
 }
 
-object DirectoryType extends Enumeration {
+final object DirectoryType extends Enumeration {
   type DirectoryType = Value
   val FILE_SYSTEM = Value
 }
 
 import DirectoryType._
 
-object Directory {
+final object Directory {
   def open(directoryType : DirectoryType, path : Path) : Directory = {
     directoryType match {
       case FILE_SYSTEM => new FileSystemDirectory(path)
@@ -99,7 +111,7 @@ trait Directory {
 }
 
 
-object DirectoryReader {
+final object DirectoryReader {
   def open(dir : Directory) : IndexReader = {
     assert(false) // TODO : Implement
     null
@@ -107,14 +119,15 @@ object DirectoryReader {
 }
 
 trait IndexReader {
+  def document(documentId : Int) : StoredDocument
   def close() : Unit
 }
 
 trait StoredDocument {
-  def get(fieldName : String) : String
+  def getFieldValue(fieldName : String) : String
 }
 
-object QueryParser {
+final object QueryParser {
   def create(defaultFieldName : String, analyzer : Analyzer) : QueryParser = {
     assert(false) // TODO : Implement
     null
@@ -126,13 +139,21 @@ trait QueryParser {
 }
 
 trait Query {
-  def toString(defaultFieldName : String) : String
 }
 
-object IndexSearcher {
+private final case class Term(fieldName : String, text : String)
+private final case class TermQuery(term : Term) extends Query
+/*
+TODO : These are not supported yet. Support them in future versions.
+private final case class BooleanQuery() extends Query
+private final case class WildcardQuery() extends Query
+private final case class PhraseQuery() extends Query
+private final case class ProximityQuery() extends Query
+*/
+
+final object IndexSearcher {
   def create(indexReader : IndexReader ) : IndexSearcher = {
-    assert(false) // TODO : Implement
-    null
+    new IndexSearcherImpl(indexReader)
   }
 }
 
@@ -141,9 +162,16 @@ trait TopDocuments {
   val totalHits : Int
 }
 
+private final class IndexSearcherImpl(val indexReader : IndexReader) extends IndexSearcher {
+  def search(query : Query, count : Int) : TopDocuments = {
+    assert(false) // TODO : Implement
+    null
+  }
+  def document(documentId : Int) : StoredDocument = indexReader.document(documentId)
+}
 trait IndexSearcher {
   def search(query : Query, count : Int) : TopDocuments
   def document(documentId : Int) : StoredDocument
 }
 
-case class ScoreDocument(documentId:Int, score : Int)
+final case class ScoreDocument(documentId:Int, score : Int)
