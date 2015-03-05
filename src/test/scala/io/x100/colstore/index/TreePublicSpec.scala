@@ -222,7 +222,7 @@ class TreePublicSpec extends FlatSpec with ShouldMatchers with TreeTestTrait {
 
   "moveBackward after seekForward" should "throw an exception" in {
     put("ab")
-    val iter = VersionedTreeIterator()
+    val iter = VersionedTreeIterator[String]()
     assert(iter != null)
     tree.seekForward(iter, Arr("ab"))
     a [java.lang.IllegalStateException] should be thrownBy( tree.moveBackward(iter) )
@@ -230,7 +230,7 @@ class TreePublicSpec extends FlatSpec with ShouldMatchers with TreeTestTrait {
 
   "moveForward after seekBackward" should "throw an exception" in {
     put("ab")
-    val iter = VersionedTreeIterator()
+    val iter = VersionedTreeIterator[String]()
     assert(iter != null)
     tree.seekBackward(iter, Arr("ab"))
     a [java.lang.IllegalStateException] should be thrownBy( tree.moveForward(iter) )

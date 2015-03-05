@@ -8,12 +8,12 @@ import org.scalatest.{Suite, PrivateMethodTester, BeforeAndAfterEach}
 trait SortedArrayPrivateTrait extends BeforeAndAfterEach with PrivateMethodTester with ShouldMatchers { this : Suite =>
   val keySpaceSize = 6
   val keyLength = 2
-  var sarray : SortedArray = null
+  var sarray : SortedArray[String] = null
 
   override def beforeEach() {
     // set-up code
     //
-    sarray = new SortedArray( keySpaceSize, keyLength );
+    sarray = new SortedArray[String]( keySpaceSize, keyLength );
 
     super.beforeEach();
   }

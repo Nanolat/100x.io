@@ -10,7 +10,7 @@ import org.scalatest.matchers.ShouldMatchers
  */
 class TreeLeafNodeSpec extends FlatSpec with ShouldMatchers with TreeInstanceTrait {
 
-  def assertStatus(node : VersionedTree#LeafNode, keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
+  def assertStatus(node : VersionedTree[String]#LeafNode, keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
     node.keysWithValues.keyCount should be (keyCount)
     node.isEmpty() should be (isEmpty)
     node.isFull() should be (isFull)
@@ -28,7 +28,7 @@ class TreeLeafNodeSpec extends FlatSpec with ShouldMatchers with TreeInstanceTra
   }
 
 
-  def assertGet(node : VersionedTree#LeafNode, key:String, expectedValue : String) : Unit = {
+  def assertGet(node : VersionedTree[String]#LeafNode, key:String, expectedValue : String) : Unit = {
     node.get( Arr(key) ) should be (expectedValue)
   }
 

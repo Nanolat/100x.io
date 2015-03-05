@@ -6,9 +6,9 @@ trait SortedArrayInstanceTrait extends BeforeAndAfterEach {
   this: Suite =>
   val keySpaceSize = 6
   val keyLength = 2
-  var sarray: SortedArray = null
+  var sarray: SortedArray[String] = null
 
-  def newArray = new SortedArray(keySpaceSize = 6, keyLength = 2)
+  def newArray = new SortedArray[String](keySpaceSize = 6, keyLength = 2)
 
   override def beforeEach() {
     // set-up code

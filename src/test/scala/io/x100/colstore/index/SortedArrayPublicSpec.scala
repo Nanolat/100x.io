@@ -23,11 +23,11 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
 
 
   def del(key : String): String = {
-    sarray.del( Arr(key) ).asInstanceOf[String]
+    sarray.del( Arr(key) )
   }
 
   def get(key : String): String = {
-    sarray.get( Arr(key) ).asInstanceOf[String]
+    sarray.get( Arr(key) )
   }
 
 
@@ -43,7 +43,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
     del(key) should be (expectedData)
   }
 
-  def assertStatus(sa : SortedArray, keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
+  def assertStatus(sa : SortedArray[String], keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
     sa.keyCount should be (keyCount)
     sa.isEmpty() should be (isEmpty)
     sa.isFull() should be (isFull)
@@ -186,7 +186,7 @@ class SortedArrayPublicSpec  extends FlatSpec with ShouldMatchers with SortedArr
 
   "mergeWith" should "throw the UnsupportedFeature exception" in {
     the [UnsupportedFeature] thrownBy {
-      val sarray2 = new SortedArray(keySpaceSize = 6, keyLength = 2)
+      val sarray2 = new SortedArray[String](keySpaceSize = 6, keyLength = 2)
       sarray.mergeWith(sarray2)
     }
   }

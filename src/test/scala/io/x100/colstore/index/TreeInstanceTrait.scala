@@ -6,12 +6,12 @@ trait TreeInstanceTrait extends BeforeAndAfterEach {
   this: Suite =>
   val keySpaceSize = 6
   val keyLength = 2
-  var tree: VersionedTree = null
-  var inode : VersionedTree#InternalNode = null
-  var lnode : VersionedTree#LeafNode = null
+  var tree: VersionedTree[String] = null
+  var inode : VersionedTree[String]#InternalNode = null
+  var lnode : VersionedTree[String]#LeafNode = null
   val t = newTree // A dummy tree for creating a leaf node and an internal node.
 
-  def newTree = new VersionedTree(keySpaceSize = 6, keyLength = 2)
+  def newTree = new VersionedTree[String](keySpaceSize = 6, keyLength = 2)
 
 
   override def beforeEach() {

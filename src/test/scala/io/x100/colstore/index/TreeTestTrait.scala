@@ -12,13 +12,13 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
   this: Suite =>
   val keySpaceSize = 6
   val keyLength = 2
-  var tree: VersionedTree = null
+  var tree: VersionedTree[String] = null
 
-  var inode : VersionedTree#InternalNode = null
-  var lnode : VersionedTree#LeafNode = null
+  var inode : VersionedTree[String]#InternalNode = null
+  var lnode : VersionedTree[String]#LeafNode = null
   val t = newTree // A dummy tree for creating a leaf node and an internal node.
 
-  def newTree = new VersionedTree(keySpaceSize, keyLength)
+  def newTree = new VersionedTree[String](keySpaceSize, keyLength)
   override def beforeEach() {
     // set-up code
     //
@@ -41,7 +41,7 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
   /** ********************************************************************************************************/
   // Private methods
   val compareKeys = PrivateMethod[Int]('compareKeys)
-  val findLeafNode = PrivateMethod[VersionedTree#LeafNode]('findLeafNode)
+  val findLeafNode = PrivateMethod[VersionedTree[String]#LeafNode]('findLeafNode)
   val putToInternalNode = PrivateMethod[Unit]('putToInternalNode)
   val putToLeafNode = PrivateMethod[Unit]('putToLeafNode)
   val delFromLeafNode = PrivateMethod[Int]('delFromLeafNode)
@@ -101,7 +101,7 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
 
   def assertForwardIterator(expectedKeys : Array[String], findingKey : String): Unit = {
     // Initialize iterator
-    val iter = VersionedTreeIterator()
+    val iter = VersionedTreeIterator[String]()
     assert(iter != null)
 
     tree.seekForward(iter, Arr(findingKey) )
@@ -142,7 +142,7 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
 
   def assertBackwardIterator(expectedKeys : Array[String], findingKey : String): Unit = {
     // Initialize iterator
-    val iter = VersionedTreeIterator()
+    val iter = VersionedTreeIterator[String]()
     assert(iter != null)
 
     tree.seekBackward(iter, Arr(findingKey) )

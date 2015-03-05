@@ -3,6 +3,8 @@ package io.x100.colstore.index
 import io.x100.UnsupportedFeature
 import io.x100.colstore.Types._
 
+import scala.reflect.ClassTag
+
 /**
  * Created by unknown on 2/20/15.
  */
@@ -13,13 +15,13 @@ object MagicValue extends Enumeration {
 }
 import MagicValue._
 
-case class VersionedTreeIterator() {
+case class VersionedTreeIterator[ValueType <: AnyRef]() {
   var isForward : Boolean = false
-  var currentNode: VersionedTree#LeafNode = null
+  var currentNode: VersionedTree[ValueType]#LeafNode = null
   val keyIter = SortedArrayIterator()
 }
 
-class VersionedTree(keySpaceSize : Int, keyLength : Int) {
+class VersionedTree[ValueType <: AnyRef](keySpaceSize : Int, keyLength : Int)(implicit m : ClassTag[ValueType]) {
   assert(keyLength > 0)
   assert(keySpaceSize > 0)
   assert(keySpaceSize % keyLength == 0)
@@ -46,7 +48,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   class Node(val magic: MagicValue) {
 
     //var keyCount: Long = 0L
-    var parent: VersionedTree#Node = null
+    var parent: VersionedTree[ValueType]#Node = null
 
     def isInternalNode() = {
       magic == INTERNAL_NODE_MAGIC
@@ -67,7 +69,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     assert(isLeafNode())
 
     // The sorted keys in an array. Each key has a mapping from a key to pointer of the value.
-    val keysWithValues = new SortedArray(keySpaceSize, keyLength)
+    val keysWithValues = new SortedArray[ValueType](keySpaceSize, keyLength)
 
     // The next sibling node
     var next: LeafNode = null
@@ -86,7 +88,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
      * @param value The value to assiciate with the key
      * @return true if an existing key was replaced. false otherwise.
      */
-    def put(key: Array[Byte], value: AnyRef) = {
+    def put(key: Array[Byte], value: ValueType) = {
       assert( key != null )
       assert( value != null )
 
@@ -104,11 +106,11 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       keysWithValues.get(key)
     }
 
-    def del(key: Array[Byte]): AnyRef = {
+    def del(key: Array[Byte]): ValueType = {
       keysWithValues.del(key)
     }
 
-    def mergeWith(node: VersionedTree#LeafNode): Unit = {
+    def mergeWith(node: VersionedTree[ValueType]#LeafNode): Unit = {
       throw new UnsupportedFeature();
     }
 
@@ -170,14 +172,14 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
   class InternalNode extends Node(INTERNAL_NODE_MAGIC) {
     // The sorted keys in an array. Each key has a mapping from a key to pointer of the value.
-    var keysWithRightChildren = new SortedArray(keySpaceSize, keyLength)
+    var keysWithRightChildren = new SortedArray[VersionedTree[ValueType]#Node](keySpaceSize, keyLength)
 
     // The child node which has keys less than than the first key.
-    private var leftChild_ : VersionedTree#Node = null
+    private var leftChild_ : VersionedTree[ValueType]#Node = null
 
     def leftChild = leftChild_
 
-    def leftChild_=(node : VersionedTree#Node): Unit = {
+    def leftChild_=(node : VersionedTree[ValueType]#Node): Unit = {
       leftChild_ = node
       leftChild_.parent = this
     }
@@ -188,7 +190,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
     def minKey() = keysWithRightChildren.minKey()
 
-    def put(key: Array[Byte], node: VersionedTree#Node): Unit = {
+    def put(key: Array[Byte], node: VersionedTree[ValueType]#Node): Unit = {
       keysWithRightChildren.put(key, node)
       node.parent = this
     }
@@ -200,11 +202,10 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       * @param key The key should be served by the found node.
       * @return node The found serving node.
       */
-    def findServingNodeByKey(key: Array[Byte]) = {
+    def findServingNodeByKey(key: Array[Byte]) : VersionedTree[ValueType]#Node = {
       assert(key != null)
 
-      val (data, nodePosition) = keysWithRightChildren.findLastLeKey(key)
-      var node = data.asInstanceOf[VersionedTree#Node]
+      var (node, nodePosition) = keysWithRightChildren.findLastLeKey(key)
 
       // keysWithRightChildren does not have the serving node for the key.
       // IOW, all keys in keysWithRightChildren are greater than the given key.
@@ -217,10 +218,10 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       node
     }
 
-    def del(key: Array[Byte]): VersionedTree#Node = {
+    def del(key: Array[Byte]): VersionedTree[ValueType]#Node = {
       assert(key != null)
 
-      val node = keysWithRightChildren.del(key).asInstanceOf[VersionedTree#Node]
+      val node = keysWithRightChildren.del(key)
 
       if (node != null)
         node.parent = null
@@ -228,7 +229,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       node
     }
 
-    def mergeWith(node: VersionedTree#InternalNode): Unit = {
+    def mergeWith(node: VersionedTree[ValueType]#InternalNode): Unit = {
       throw new UnsupportedFeature()
     }
 
@@ -265,7 +266,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
       assert( keysWithRightChildren.keyCount > 0 )
 
       // Set the node attached with the mid key to the left child of the new split node.
-      rightNode.leftChild = midKeyNode.asInstanceOf[Node]
+      rightNode.leftChild = midKeyNode
 
       (rightNode, midKey)
     }
@@ -289,8 +290,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
 
       var endOfIteration = false
       do {
-        val ( key, data ) = keysWithRightChildren.iterNext(iter)
-        val node = data.asInstanceOf[VersionedTree#Node]
+        val ( key, node ) = keysWithRightChildren.iterNext(iter)
 
         if (key == null)
           endOfIteration = true
@@ -330,14 +330,14 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
   private def findLeafNode(key: Array[Byte]) = {
     assert( key != null )
 
-    var node : VersionedTree#Node = rootNode
+    var node : VersionedTree[ValueType]#Node = rootNode
     while( node.isInternalNode() ) {
-      val internalNode = node.asInstanceOf[VersionedTree#InternalNode]
+      val internalNode = node.asInstanceOf[VersionedTree[ValueType]#InternalNode]
 
       node = internalNode.findServingNodeByKey( key )
     }
 
-    node.asInstanceOf[VersionedTree#LeafNode]
+    node.asInstanceOf[VersionedTree[ValueType]#LeafNode]
   }
 
   /** Put a key into an internal node. Let the key point to another node.
@@ -345,7 +345,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     * @param key The key to put into the internal node.
     * @param keyNode The key node that the key will point to.
     */
-  private def putToInternalNode(node: VersionedTree#InternalNode, key: Array[Byte], keyNode: VersionedTree#Node): Unit = {
+  private def putToInternalNode(node: VersionedTree[ValueType]#InternalNode, key: Array[Byte], keyNode: VersionedTree[ValueType]#Node): Unit = {
     assert(node != null)
     assert(key != null)
     assert(keyNode != null)
@@ -414,7 +414,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     * @param key The key to put
     * @param value The value to put
     */
-  private def putToLeafNode(node: VersionedTree#LeafNode, key: Array[Byte], value: AnyRef) : Unit = {
+  private def putToLeafNode(node: VersionedTree[ValueType]#LeafNode, key: Array[Byte], value: ValueType) : Unit = {
     assert( node != null )
     assert( key != null )
     assert( value != null )
@@ -443,7 +443,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     }
   }
 
-  private def delFromLeafNode(node: VersionedTree#LeafNode, key: Array[Byte]) : Unit = {
+  private def delFromLeafNode(node: VersionedTree[ValueType]#LeafNode, key: Array[Byte]) : Unit = {
     assert(node != null)
     assert(key != null)
     node.del(key)
@@ -451,7 +451,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     // BUGBUG : Check if we need to propagate the deletion up to parents if the key was minKey of the node.
   }
 
-  def put(key: Array[Byte], value: AnyRef): Unit = {
+  def put(key: Array[Byte], value: ValueType): Unit = {
     assert(key != null)
     assert(value != null)
 
@@ -479,7 +479,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     deletedValue
   }
 
-  def seekForward(iter: VersionedTreeIterator, key: Array[Byte]) = {
+  def seekForward(iter: VersionedTreeIterator[ValueType], key: Array[Byte]) = {
     assert(iter != null)
     assert(key != null)
 
@@ -490,7 +490,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
     leafNode.keysWithValues.iterForward(iter.keyIter, key)
   }
 
-  def seekBackward(iter: VersionedTreeIterator, key: Array[Byte]) = {
+  def seekBackward(iter: VersionedTreeIterator[ValueType], key: Array[Byte]) = {
     assert(iter != null)
     assert(key != null)
 
@@ -508,7 +508,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
    * @param iter The iterator we are working on
    * @return (key, value). key is not null if the key exists to iterate. Otherwise it is null.
    */
-  def moveForward(iter: VersionedTreeIterator) = {
+  def moveForward(iter: VersionedTreeIterator[ValueType]) : (Array[Byte], ValueType) = {
     if (!iter.isForward) throw new IllegalStateException()
 
     val keysWithValues = iter.currentNode.keysWithValues
@@ -525,7 +525,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
         (key, value)
       } else {
         // No more keys to iterate
-        (null, null)
+        (null, null.asInstanceOf[ValueType])
       }
     } else {
       (key, value)
@@ -538,7 +538,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
    * @param iter The iterator we are working on
    * @return (key, value). key is not null if the key exists to iterate. Otherwise it is null.
    */
-  def moveBackward(iter: VersionedTreeIterator) = {
+  def moveBackward(iter: VersionedTreeIterator[ValueType]) : (Array[Byte], ValueType) = {
     if (iter.isForward) throw new IllegalStateException()
 
     val keysWithValues = iter.currentNode.keysWithValues
@@ -554,7 +554,7 @@ class VersionedTree(keySpaceSize : Int, keyLength : Int) {
         (key, value)
       } else {
         // No more keys to iterate
-        (null, null)
+        (null, null.asInstanceOf[ValueType])
       }
     } else {
       (key, value)

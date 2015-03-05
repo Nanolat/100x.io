@@ -11,7 +11,7 @@ import io.x100.TestUtil._
  */
 class TreeInternalNodeSpec extends FlatSpec with ShouldMatchers with TreeInstanceTrait {
 
-  def assertStatus(node : VersionedTree#InternalNode, keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
+  def assertStatus(node : VersionedTree[String]#InternalNode, keyCount : Int, isEmpty : Boolean, isFull : Boolean, minKey : String): Unit = {
     node.keysWithRightChildren.keyCount should be (keyCount)
     node.isEmpty() should be (isEmpty)
     node.isFull() should be (isFull)
@@ -44,7 +44,7 @@ class TreeInternalNodeSpec extends FlatSpec with ShouldMatchers with TreeInstanc
       val servingNode = inode.findServingNodeByKey( Arr(key) )
       if (servingNode != null) {
         // When we put a key in inode, we associated it with a leaf node whose minKey is same to the associated key for verification purpose.
-        val leafNode = servingNode.asInstanceOf[VersionedTree#LeafNode]
+        val leafNode = servingNode.asInstanceOf[VersionedTree[String]#LeafNode]
         leafNode.minKey() should be ( Arr(minKeyOfServingNode) )
       } else {
         // When the key is not served by child node mapped with a key on inode,

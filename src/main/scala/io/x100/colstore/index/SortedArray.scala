@@ -6,6 +6,8 @@ import io.x100.util.Arrays
 import scala.collection.mutable
 import io.x100.colstore.Types._
 
+import scala.reflect.ClassTag
+
 case class SortedArrayIterator() {
   var isForward : Boolean = false
   var keyPos : Int = 0
@@ -15,7 +17,7 @@ case class SortedArrayIterator() {
 /**
  * Created by unknown on 2/20/15.
  */
-class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
+class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength)(implicit m: ClassTag[ValueType]) {
   assert( keySpaceSize > 0)
   assert( keyLength > 0)
   assert( keySpaceSize > keyLength )
@@ -24,7 +26,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   private val keySpace = new Array[Byte](keySpaceSize)
 
   assert( keySpaceSize % keyLength == 0 )
-  private val dataArray = new Array[AnyRef](keySpaceSize/keyLength)
+  private val dataArray = new Array[ValueType](keySpaceSize/keyLength)
 
   var keyCount = 0
   private var usedKeySpace = 0
@@ -178,13 +180,13 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   }
 
 
-  private def setData(dataPos : Int, data : AnyRef): Unit = {
+  private def setData(dataPos : Int, data : ValueType): Unit = {
     assert( dataPos >=0 )
     assert( data != null )
     dataArray(dataPos) = data
   }
 
-  private def getData(dataPos : Int) = {
+  private def getData(dataPos : Int) : ValueType = {
     dataArray(dataPos)
   }
 
@@ -241,7 +243,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     System.arraycopy(keySpace, shiftSrcOffset, keySpace, shiftDestOffset, sizeOfKeysToShift)
   }
 
-  private def setKeyDataAt( keyPos : Int, dataPos : Int, key : Array[Byte], data : AnyRef): Unit = {
+  private def setKeyDataAt( keyPos : Int, dataPos : Int, key : Array[Byte], data : ValueType): Unit = {
     assert( keyPos >= 0 )
     assert( keyPos + keyLength <= keySpaceSize )
     assert( dataPos >= 0 )
@@ -295,7 +297,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     System.arraycopy(dataArray, shiftSrcOffset, dataArray, shiftDestOffset, countOfDataToShift)
   }
 
-  private def insertKeyDataAt(keyPos : Int, dataPos : Int, key : Array[Byte], data : AnyRef): Unit = {
+  private def insertKeyDataAt(keyPos : Int, dataPos : Int, key : Array[Byte], data : ValueType): Unit = {
     assert( keyPos >= 0 )
     assert( dataPos >= 0 )
     assert( keyPos + keyLength <= keySpaceSize )
@@ -370,7 +372,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     // Do nothing
   }
 
-  def put(key : Array[Byte], data : AnyRef) : Unit = {
+  def put(key : Array[Byte], data : ValueType) : Unit = {
     assert( key != null );
     assert( data != null );
     assert( keyLength > 0 );
@@ -386,7 +388,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   }
 
 
-  def get(key : Array[Byte]) = {
+  def get(key : Array[Byte]) : ValueType = {
 
     assert( key != null );
 
@@ -400,7 +402,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     else
     {
       // We don't have the key.
-      null
+      null.asInstanceOf[ValueType]
     }
   }
 
@@ -410,14 +412,14 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
    *
    * c.f. "le" means "less than or equal to".
    */
-  def findLastLeKey(key : Array[Byte]) = {
+  def findLastLeKey(key : Array[Byte]) : (ValueType, Int) = {
     assert( key != null )
 
     val ( keyPos, dataPos, keyFound ) = searchForward(key)
 
     val data = if (dataPos < 0) // The first key in the keySpace is greater than the given key.
     {
-      null // We don't have the key greater than or equal to the given key. Return null.
+      null.asInstanceOf[ValueType] // We don't have the key greater than or equal to the given key. Return null.
     }
     else
     {
@@ -427,7 +429,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     (data, dataPos)
   }
 
-  def del(key : Array[Byte]) = {
+  def del(key : Array[Byte]) : ValueType = {
     assert( key != null )
 
     val (keyPos, dataPos, keyFound) = searchForward(key);
@@ -441,7 +443,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     }
     else
     {
-      null
+      null.asInstanceOf[ValueType]
     }
 
     assert( keyCount >= 0 )
@@ -450,7 +452,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     data
   }
 
-  def removeMaxKey() = {
+  def removeMaxKey() : (Array[Byte], ValueType) = {
 
     val (key, data) = if ( keyCount > 0 )
     {
@@ -468,7 +470,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     }
     else
     {
-      ( null, null )
+      ( null, null.asInstanceOf[ValueType] )
     }
 
     assert( keyCount >= 0 )
@@ -533,7 +535,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     iter.dataPos = keyCount - 1
   }
 
-  def iterNext( iter : SortedArrayIterator ) = {
+  def iterNext( iter : SortedArrayIterator ) : (Array[Byte], ValueType) = {
     assert( iter != null )
     assert( iter.keyPos >=0 )
     assert( iter.dataPos >= 0 )
@@ -553,13 +555,13 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     }
     else
     {
-      (null, null)
+      (null, null.asInstanceOf[ValueType])
     }
 
     (key, data)
   }
 
-  def iterPrev( iter : SortedArrayIterator ) = {
+  def iterPrev( iter : SortedArrayIterator ) : (Array[Byte], ValueType) = {
     assert( iter != null )
     assert( iter.keyPos + keyLength <= usedKeySpace )
     assert( iter.dataPos < keyCount )
@@ -579,13 +581,13 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
     }
     else
     {
-      (null, null)
+      (null, null.asInstanceOf[ValueType])
     }
 
     (key, data)
   }
 
-  def mergeWith( sortedArray : SortedArray ): Unit = {
+  def mergeWith( sortedArray : SortedArray[ValueType] ): Unit = {
     throw new UnsupportedFeature()
   }
 
@@ -594,7 +596,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
             newKeyCount : Int,
             newUsedKeySpace : Int,
             srcKeySpace : Array[Byte], srcKeySpaceOffset : Int,
-            srcDataArray : Array[AnyRef], srcDataArrayOffset : Int ): Unit = {
+            srcDataArray : Array[ValueType], srcDataArrayOffset : Int ): Unit = {
 
     assert( newKeyLength > 0 )
     assert( newKeyCount > 0 )
@@ -620,7 +622,7 @@ class SortedArray(keySpaceSize:Int, var keyLength:KeyLength) {
   }
 
 
-  def split(rightHalf : SortedArray) = {
+  def split(rightHalf : SortedArray[ValueType]) = {
 
     assert( rightHalf != null )
     assert( rightHalf.keyCount == 0 )

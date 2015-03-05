@@ -6,10 +6,13 @@ object TrieNode {
 }
 
 import TrieNode._
+
+import scala.reflect.ClassTag
+
 /**
  * A TrieNode. It is either an internal node with children or a leaf node without it.
  */
-class TrieNode[ValueType](var value : Option[ValueType], var children : SortedArray = new SortedArray(keySpaceSize=16, keyLength = 1)) {
+class TrieNode[ValueType](var value : Option[ValueType], var children : SortedArray[TrieNode[ValueType]] = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1))(implicit m : ClassTag[ValueType]) {
   // Let's store each nibble on a byte. We will compact the size when we serialize it on a byte[] later.
   // We will have up to 16 nibbles per node, because a nibble can have value from 0 to 15.
 
@@ -32,31 +35,30 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
     val keyArray = Array(nibble)
 
     var child = if (children == null) {
-      // This is a leaf node without any child. Let's make the node a internal node to put the new key.
-      // Note that an internal node can also have a option value associated.
-      children = new SortedArray(keySpaceSize=16, keyLength = 1)
-      null // We don't have a child that serves the given nibble key.
+      // This is a leaf node without any child. Let's make the node an internal node to put the new nibble key.
+      // Note that an internal node can also have an associated option value.
+      children = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1)
+      null // We don't have a child that serves the given nibble key at this point.
     } else {
-      // TODO : Make SortedArray a generic with the value type.
-      children.get( keyArray ).asInstanceOf[TrieNode[ValueType]]
+      children.get( keyArray )
     }
 
-    if ( offset == key.length -1 ) { // Base case : We are processing the last nibble.
-      if (child == null) {
+    if ( offset == key.length -1 ) { // Base case : We are processing the last nibble key.
+      if (child == null) { // Add a new child if one with the nibble key does not exist yet.
         child = new TrieNode[ValueType](value, children = null) // This is the leaf node without any children.
         children.put( keyArray, child)
-        null // Return null, because the key was not found.
+        null // Return null, because the nibble key was not found.
       } else {
         val oldValue = child.value
         child.value = value
-        oldValue // Return the old value because the key was found.
+        oldValue // Return the old value because the nibble key was found.
       }
     } else { // We still have more nibble(s) to process.
-      if (child == null) {
+      if (child == null) { // Add an internal node with the given nibble key if it does not exist yet.
         child = new TrieNode[ValueType](None)
         children.put( keyArray, child)
       }
-      // Continue to put to the child if we have more nibbles on the key.
+      // We have more nibbles on the given key array. Continue to put them on the child.
       child.put(key, offset + 1, value)
     }
   }
@@ -78,8 +80,7 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
     if (children == null) // This is a leaf node. no more children, meaning we don't have the key on the trie.
       null
     else {
-      // TODO : Make SortedArray a generic with the value type.
-      val node = children.get( keyArray ).asInstanceOf[TrieNode[ValueType]]
+      val node = children.get( keyArray )
       if (node == null) {
         null
       } else {
@@ -93,7 +94,7 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
   }
 }
 
-class Trie[ValueType] {
+class Trie[ValueType]()(implicit m : ClassTag[ValueType]) {
   // The root node of the trie. It does not have any option value associated with it.
   val rootNode = new TrieNode[ValueType](value = null)
 
