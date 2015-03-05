@@ -7,9 +7,9 @@ trait TreeInstanceTrait extends BeforeAndAfterEach {
   val keySpaceSize = 6
   val keyLength = 2
   var tree: VersionedTree[String] = null
-  var inode : VersionedTree[String]#InternalNode = null
-  var lnode : VersionedTree[String]#LeafNode = null
   val t = newTree // A dummy tree for creating a leaf node and an internal node.
+  var inode : t.InternalNode = null
+  var lnode : t.LeafNode = null
 
   def newTree = new VersionedTree[String](keySpaceSize = 6, keyLength = 2)
 
