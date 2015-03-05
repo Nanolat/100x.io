@@ -59,7 +59,7 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
     tree.del( Arr(key) )
   }
 
-  // convert an integer ranging from 0 to 255 to a key with to chars. The key has hex representation of the integer value.
+  // convert an integer ranging from 0 to 255 to a key with chars. The key has hex representation of the integer value.
   def i2key(i : Int) = "%02x" format i
 
   def putKeys(min : Int, max : Int): Unit = {
@@ -67,7 +67,6 @@ trait TreeTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
     (min to max) map { i =>
       val key = i2key(i)
       put( key )
-      //info (s"put($key)")
       // To improve test coverage :-)
       val dummy = tree.toString()
     }
