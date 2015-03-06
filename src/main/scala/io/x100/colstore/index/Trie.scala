@@ -5,14 +5,29 @@ object TrieNode {
   def isNibble(value : Byte) = (value & 0xf0) == 0
 }
 
-import TrieNode._
+import java.io.BufferedOutputStream
+import java.util
+import java.util
 
+import TrieNode._
+import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
+
+import scala.collection.mutable.HashMap
 import scala.reflect.ClassTag
+import java.io.OutputStream
+import scala.collection.mutable.Queue
+
+case class TrieNodeHeader(offset : Int)
 
 /**
  * A TrieNode. It is either an internal node with children or a leaf node without it.
  */
-class TrieNode[ValueType](var value : Option[ValueType], var children : SortedArray[TrieNode[ValueType]] = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1))(implicit m : ClassTag[ValueType]) {
+class TrieNode[ ValueType >: Null <% {def getBytes(): Array[Byte]} ](var value : ValueType, var children : SortedArray[TrieNode[ValueType]] = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1))(implicit m : ClassTag[ValueType]) {
+
+  trait Visitor {
+    def visit(nodeKey : Array[Byte], node : TrieNode[ValueType] ) : Unit
+  }
+
   // Let's store each nibble on a byte. We will compact the size when we serialize it on a byte[] later.
   // We will have up to 16 nibbles per node, because a nibble can have value from 0 to 15.
 
@@ -23,7 +38,7 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
    * @param value the value we are going to associate with the key
    * @return the old option value associated with the key if the key was existing. null otherwise.
    */
-  def put( key : Array[Byte], offset: Int, value : Option[ValueType]) : Option[ValueType]= {
+  def put( key : Array[Byte], offset: Int, value : ValueType) : ValueType = {
     // We don't allow the value to be null. If you want to put null, pass None and Some(value) instead.
     if ( value == null ) throw new IllegalArgumentException()
 
@@ -34,7 +49,7 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
     // TODO : Optimize to pass the input parameter, nibbleArray, instead of creating a new array.
     val keyArray = Array(nibble)
 
-    var child = if (children == null) {
+    var child : TrieNode[ValueType] = if (children == null) {
       // This is a leaf node without any child. Let's make the node an internal node to put the new nibble key.
       // Note that an internal node can also have an associated option value.
       children = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1)
@@ -55,7 +70,7 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
       }
     } else { // We still have more nibble(s) to process.
       if (child == null) { // Add an internal node with the given nibble key if it does not exist yet.
-        child = new TrieNode[ValueType](None)
+        child = new TrieNode[ValueType](null)
         children.put( keyArray, child)
       }
       // We have more nibbles on the given key array. Continue to put them on the child.
@@ -92,9 +107,34 @@ class TrieNode[ValueType](var value : Option[ValueType], var children : SortedAr
       }
     }
   }
+
+  /** Do depth first search to serialize trie data.
+   *
+   * @param visitor The visitor that visits each node in the trie.
+   */
+  def dfs(nodeKey : Array[Byte], visitor : TrieNode[ValueType]#Visitor) : Unit = {
+
+    visitor.visit(nodeKey, this)
+
+    if (children != null ) {
+      val iter = new SortedArrayIterator()
+      children.iterForward(iter)
+
+      var (key, child) = children.iterNext(iter)
+      while( key != null && child != null) {
+
+        child.dfs(key, visitor)
+
+        val (nextKey, nextChild) = children.iterNext(iter)
+
+        key = nextKey
+        child = nextChild
+      }
+    }
+  }
 }
 
-class Trie[ValueType]()(implicit m : ClassTag[ValueType]) {
+class Trie[ ValueType >: Null <% {def getBytes(): Array[Byte]} ]()(implicit m : ClassTag[ValueType]) {
   // The root node of the trie. It does not have any option value associated with it.
   val rootNode = new TrieNode[ValueType](value = null)
 
@@ -103,7 +143,7 @@ class Trie[ValueType]()(implicit m : ClassTag[ValueType]) {
    * @param key The key to put.
    * @param value The value associated with an already existing key. Otherwise, return null.
    */
-  def put( key : Array[Byte], value : Option[ValueType] ) : Unit =  {
+  def put( key : Array[Byte], value : ValueType ) : Unit =  {
     rootNode.put( key, 0, value)
   }
 
@@ -139,9 +179,102 @@ class Trie[ValueType]()(implicit m : ClassTag[ValueType]) {
     }
   }
 
-  def serialize() : Array[Byte] = {
-    // TODO : Implement it
-    assert(false)
-    null
+  /** Do breadth first search to serialize trie header.
+    *
+    * @param visitor The visitor that visits each node in the trie.
+    */
+  def bfs(visitor : TrieNode[ValueType]#Visitor) : Unit = {
+
+    case class VisitedNodeContext(key : Array[Byte], node : TrieNode[ValueType])
+
+    val queue = new scala.collection.mutable.Queue[VisitedNodeContext]()
+    queue.enqueue( VisitedNodeContext(null, rootNode) );
+
+    while( ! queue.isEmpty ) {
+      val visitedNodeInfo = queue.dequeue()
+
+      visitor.visit( visitedNodeInfo.key, visitedNodeInfo.node )
+
+      val children = visitedNodeInfo.node.children
+
+      // Add children to the queue if any.
+      if (children != null ) {
+        val iter = new SortedArrayIterator()
+        children.iterForward(iter)
+
+        var (key, child) = children.iterNext(iter)
+        while( key != null && child != null) {
+
+          queue.enqueue( VisitedNodeContext( key, child) )
+
+          val (nextKey, nextChild) = children.iterNext(iter)
+
+          key = nextKey
+          child = nextChild
+        }
+      }
+    }
+  }
+
+  def dfs( visitor : TrieNode[ValueType]#Visitor ): Unit = {
+    rootNode.dfs(null, visitor)
+  }
+
+  private def intToByteArray(value : Int) = {
+    Array(  (value >>> 24).toByte,
+      (value >>> 16).toByte,
+      (value >>> 8).toByte,
+      value.toByte );
+  }
+
+  def serialize() = {
+    val headerMap = new HashMap[TrieNode[ValueType], TrieNodeHeader]()
+    val headerOut = new ByteOutputStream()
+    val dataOut = new ByteOutputStream()
+    var totalNodeCount = 0
+    // TODO : Use BufferedOutputStream for speed optimization?
+    // Serialize data by depth first search, to save data sorted in the key order.
+    // This will help us to efficiently merge multiple serialized tries.
+    dfs( new rootNode.Visitor() {
+      def visit(nodeKey : Array[Byte], node : TrieNode[ValueType]): Unit = {
+        val dataOffset = dataOut.getCount()
+        headerMap(node) = TrieNodeHeader(dataOffset)
+
+        // Write key first
+        if (nodeKey != null) {
+          dataOut.write(nodeKey.length)
+          dataOut.write(nodeKey)
+        } else {
+          dataOut.write(0)
+        }
+
+        // Write value only if any value is set.
+        if (node.value != null ) {
+          // Write the value. First write [1 byte : length], and then [N bytes : value].
+          val valueBytes = node.value.getBytes()
+          assert( valueBytes.length <= 255)
+          dataOut.write(valueBytes.length)
+          dataOut.write(valueBytes)
+        } else {
+          dataOut.write(0) // the length of the value is 0.
+        }
+
+        totalNodeCount += 1
+      }
+    })
+
+    // First write the total number of nodes on the header.
+    headerOut.write( intToByteArray(totalNodeCount) )
+
+    // Now on headerMap, we have data offset for each node.
+    // Visit trie nodes in breadth first order to write the offset of each node level by level.
+    bfs( new rootNode.Visitor() {
+      def visit(nodeKey : Array[Byte], node : TrieNode[ValueType]): Unit = {
+        val nodeHeader = headerMap(node)
+        headerOut.write( intToByteArray(nodeHeader.offset) )
+      }
+    })
+
+    (headerOut.getBytes(), dataOut.getBytes())
   }
 }

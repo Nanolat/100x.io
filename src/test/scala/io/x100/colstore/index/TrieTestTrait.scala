@@ -35,7 +35,7 @@ trait TrieTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
 
   /** ********************************************************************************************************/
   def put(key : String): Unit = {
-    trie.put( NibArr(key), Some(key) )
+    trie.put( NibArr(key), key )
   }
 
   def get(key : String) = {
@@ -65,8 +65,8 @@ trait TrieTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
       val key = i2key(i)
       val expectedData = filterOption match {
         // If the filter evaluates to false, it means the key should not exist, meaning expectedData is null.
-        case Some(filter) => if (filter(i)) Some(key) else null
-        case None => Some(key)
+        case Some(filter) => if (filter(i)) key else null
+        case None => key
       }
 
       get( key ) should be (expectedData)

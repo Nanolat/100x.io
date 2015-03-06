@@ -17,7 +17,7 @@ case class SortedArrayIterator() {
 /**
  * Created by unknown on 2/20/15.
  */
-class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength)(implicit m: ClassTag[ValueType]) {
+class SortedArray[ValueType >: Null <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength)(implicit m: ClassTag[ValueType]) {
   assert( keySpaceSize > 0)
   assert( keyLength > 0)
   assert( keySpaceSize > keyLength )
@@ -402,7 +402,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
     else
     {
       // We don't have the key.
-      null.asInstanceOf[ValueType]
+      null
     }
   }
 
@@ -419,7 +419,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
 
     val data = if (dataPos < 0) // The first key in the keySpace is greater than the given key.
     {
-      null.asInstanceOf[ValueType] // We don't have the key greater than or equal to the given key. Return null.
+      null // We don't have the key greater than or equal to the given key. Return null.
     }
     else
     {
@@ -443,7 +443,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
     }
     else
     {
-      null.asInstanceOf[ValueType]
+      null
     }
 
     assert( keyCount >= 0 )
@@ -470,7 +470,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
     }
     else
     {
-      ( null, null.asInstanceOf[ValueType] )
+      ( null, null )
     }
 
     assert( keyCount >= 0 )
@@ -555,7 +555,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
     }
     else
     {
-      (null, null.asInstanceOf[ValueType])
+      (null, null)
     }
 
     (key, data)
@@ -581,7 +581,7 @@ class SortedArray[ValueType <: AnyRef](keySpaceSize:Int, var keyLength:KeyLength
     }
     else
     {
-      (null, null.asInstanceOf[ValueType])
+      (null, null)
     }
 
     (key, data)

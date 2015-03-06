@@ -15,13 +15,13 @@ object MagicValue extends Enumeration {
 }
 import MagicValue._
 
-case class VersionedTreeIterator[ValueType <: AnyRef]() {
+case class VersionedTreeIterator[ValueType >: Null <: AnyRef]() {
   var isForward : Boolean = false
   var currentNode: VersionedTree[ValueType]#LeafNode = null
   val keyIter = SortedArrayIterator()
 }
 
-class VersionedTree[ValueType <: AnyRef](keySpaceSize : Int, keyLength : Int)(implicit m : ClassTag[ValueType]) {
+class VersionedTree[ValueType >: Null <: AnyRef](keySpaceSize : Int, keyLength : Int)(implicit m : ClassTag[ValueType]) {
   assert(keyLength > 0)
   assert(keySpaceSize > 0)
   assert(keySpaceSize % keyLength == 0)
@@ -525,7 +525,7 @@ class VersionedTree[ValueType <: AnyRef](keySpaceSize : Int, keyLength : Int)(im
         (key, value)
       } else {
         // No more keys to iterate
-        (null, null.asInstanceOf[ValueType])
+        (null, null)
       }
     } else {
       (key, value)
@@ -554,7 +554,7 @@ class VersionedTree[ValueType <: AnyRef](keySpaceSize : Int, keyLength : Int)(im
         (key, value)
       } else {
         // No more keys to iterate
-        (null, null.asInstanceOf[ValueType])
+        (null, null)
       }
     } else {
       (key, value)
