@@ -5,27 +5,23 @@ object TrieNode {
   def isNibble(value : Byte) = (value & 0xf0) == 0
 }
 
-import java.io.BufferedOutputStream
+import java.nio._
 import java.util
 import java.util
 
 import TrieNode._
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
+import io.x100.util.Varint
 
 import scala.collection.mutable.HashMap
 import scala.reflect.ClassTag
-import java.io.OutputStream
-import scala.collection.mutable.Queue
-
-case class TrieNodeHeader(offset : Int)
 
 /**
  * A TrieNode. It is either an internal node with children or a leaf node without it.
  */
-class TrieNode[ ValueType >: Null <% {def getBytes(): Array[Byte]} ](var value : ValueType, var children : SortedArray[TrieNode[ValueType]] = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1))(implicit m : ClassTag[ValueType]) {
-
+class TrieNode[ ValueType >: Null ](var value : ValueType, var children : SortedArray[TrieNode[ValueType]] = new SortedArray[TrieNode[ValueType]](keySpaceSize=16, keyLength = 1))(implicit m : ClassTag[ValueType]) {
   trait Visitor {
-    def visit(level : Int, nodeKey : Array[Byte], node : TrieNode[ValueType] ) : Unit
+    def visit(node : TrieNode[ValueType] ) : Unit
   }
 
   // Let's store each nibble on a byte. We will compact the size when we serialize it on a byte[] later.
@@ -108,14 +104,13 @@ class TrieNode[ ValueType >: Null <% {def getBytes(): Array[Byte]} ](var value :
     }
   }
 
-  /** Do depth first search to serialize trie data.
-   *
-   * @param visitor The visitor that visits each node in the trie.
-   */
-  def dfs(level : Int, nodeKey : Array[Byte], visitor : TrieNode[ValueType]#Visitor) : Unit = {
-
-    visitor.visit(level, nodeKey, this)
-
+  /** Do visit nodes in post order.
+    * This is necessary to visit children first to collect their data
+    * such as offset of each child in a continuous byte array.
+    *
+    * @param visitor The visitor that visits each node in the trie.
+    */
+  def visitInPostOrder(visitor : TrieNode[ValueType]#Visitor) : Unit = {
     if (children != null ) {
       val iter = new SortedArrayIterator()
       children.iterForward(iter)
@@ -123,7 +118,7 @@ class TrieNode[ ValueType >: Null <% {def getBytes(): Array[Byte]} ](var value :
       var (key, child) = children.iterNext(iter)
       while( key != null && child != null) {
 
-        child.dfs(level + 1, key, visitor)
+        child.visitInPostOrder(visitor)
 
         val (nextKey, nextChild) = children.iterNext(iter)
 
@@ -131,10 +126,17 @@ class TrieNode[ ValueType >: Null <% {def getBytes(): Array[Byte]} ](var value :
         child = nextChild
       }
     }
+    visitor.visit(this)
   }
 }
 
-class Trie[ ValueType >: Null <% {def getBytes(): Array[Byte]} ]()(implicit m : ClassTag[ValueType]) {
+trait ValueSerializer[ValueType >: Null ] {
+  def serialize(buffer : ByteBuffer, value : ValueType)
+  def deserialize(buffer : ByteBuffer) : ValueType
+}
+
+class Trie[ ValueType >: Null ]()(implicit m : ClassTag[ValueType]) {
+
   // The root node of the trie. It does not have any option value associated with it.
   val rootNode = new TrieNode[ValueType](value = null)
 
@@ -179,111 +181,74 @@ class Trie[ ValueType >: Null <% {def getBytes(): Array[Byte]} ]()(implicit m : 
     }
   }
 
-  /** Do breadth first search to serialize trie header.
-    *
-    * @param visitor The visitor that visits each node in the trie.
-    */
-  def bfs(visitor : TrieNode[ValueType]#Visitor) : Unit = {
+  def serialize(buffer : ByteBuffer, valueSerializer : ValueSerializer[ValueType]) = {
+    // Data to keep for each node while serializing each node.
+    case class NodeKeeping(offset : Int)
 
-    case class VisitedNodeContext(level : Int, key : Array[Byte], node : TrieNode[ValueType])
+    val nodeMap = new HashMap[TrieNode[ValueType], NodeKeeping]()
 
-    val queue = new scala.collection.mutable.Queue[VisitedNodeContext]()
-    queue.enqueue( VisitedNodeContext(0, null, rootNode) );
+    // The offset to the root node. First write 0 to it,
+    // and then we write the actual offset of the root node at the end of this function.
+    buffer.putInt(0)
 
-    while( ! queue.isEmpty ) {
-      val visitedNodeInfo = queue.dequeue()
-
-      visitor.visit( visitedNodeInfo.level, visitedNodeInfo.key, visitedNodeInfo.node )
-
-      val children = visitedNodeInfo.node.children
-
-      // Add children to the queue if any.
-      if (children != null ) {
-        val iter = new SortedArrayIterator()
-        children.iterForward(iter)
-
-        var (key, child) = children.iterNext(iter)
-        while( key != null && child != null) {
-
-          queue.enqueue( VisitedNodeContext( visitedNodeInfo.level + 1, key, child) )
-
-          val (nextKey, nextChild) = children.iterNext(iter)
-
-          key = nextKey
-          child = nextChild
-        }
-      }
-    }
-  }
-
-  def dfs( visitor : TrieNode[ValueType]#Visitor ): Unit = {
-    rootNode.dfs(0, null, visitor)
-  }
-
-  private def intToByteArray(value : Int) = {
-    Array(  (value >>> 24).toByte,
-      (value >>> 16).toByte,
-      (value >>> 8).toByte,
-      value.toByte );
-  }
-
-  def serialize() = {
-    val headerMap = new HashMap[TrieNode[ValueType], TrieNodeHeader]()
-    val headerOut = new ByteOutputStream()
-    val dataOut = new ByteOutputStream()
-    var totalNodeCount = 0
-    var previousLevel = 0 // We need this variable to serialize the level difference.
     // TODO : Use BufferedOutputStream for speed optimization?
-    // Serialize data by depth first search, to save data sorted in the key order.
-    // This will help us to efficiently merge multiple serialized tries.
-    dfs( new rootNode.Visitor() {
-      def visit(level : Int, nodeKey : Array[Byte], node : TrieNode[ValueType]): Unit = {
-        val dataOffset = dataOut.getCount()
-        headerMap(node) = TrieNodeHeader(dataOffset)
+    // Serialize data by visiting the trie in post order, which visits children first.
+    // By this way, we can get offset of child nodes when we write the parent(current) node.
+    rootNode.visitInPostOrder( new rootNode.Visitor() {
+      def visit(node : TrieNode[ValueType]): Unit = {
 
-        // Write level difference. If we went down to a child, then write 1.
-        // If we came up to a parent, write -1, -2, -3 ... depending on how many levels we are up.
-        // This level diff is used to keep the common prefix on the trie
-        // while reading the keys in ascending order to merge multiple tries.
-        val levelDiff = level - previousLevel
-        dataOut.write( levelDiff ) // 1 byte( max 255 ) is enough for the level diff.
+        val nodeOffset = buffer.position()
+        nodeMap(node) = NodeKeeping(nodeOffset)
 
-        // Write key first
-        if (nodeKey != null) {
-          dataOut.write(nodeKey.length)
-          dataOut.write(nodeKey)
+        // Serialize the value first. Note that null is also serialized and deserialized by this function call.
+        valueSerializer.serialize(buffer, node.value)
+
+        // Write (key, relative offset) pair for each child.
+        // The relative offset of this child node is
+        // the offset difference between the current node(parent) and a child.
+        if (node.children == null ) {
+          // Write number of children.
+          buffer.put(0.toByte)
         } else {
-          dataOut.write(0)
-        }
+          // Write number of children.
+          val keyCount = node.children.keyCount
+          assert(keyCount < 256)
+          buffer.put(keyCount.toByte)
 
-        // Write value only if any value is set.
-        if (node.value != null ) {
-          // Write the value. First write [1 byte : length], and then [N bytes : value].
-          val valueBytes = node.value.getBytes()
-          assert( valueBytes.length <= 255)
-          dataOut.write(valueBytes.length)
-          dataOut.write(valueBytes)
-        } else {
-          dataOut.write(0) // the length of the value is 0.
-        }
+          val iter = new SortedArrayIterator()
+          node.children.iterForward(iter)
 
-        totalNodeCount += 1
-        previousLevel = level
+          var (key, child) = node.children.iterNext(iter)
+          while( key != null && child != null) {
+
+            // Write key
+            // TODO : Optimize : The key is only a nibble. Write it by consuming only 4 bits.
+            assert(key.length == 1)
+            buffer.put(key)
+
+            // Write the relative offset of the child.
+            val childKeeping = nodeMap(child)
+            assert(childKeeping != null)
+            val relativeOffset = nodeOffset - childKeeping.offset
+            assert( relativeOffset > 0 )
+            Varint.writeUnsignedVarInt(buffer, relativeOffset)
+
+            val (nextKey, nextChild) = node.children.iterNext(iter)
+
+            key = nextKey
+            child = nextChild
+          }
+        }
       }
     })
+    val writtenBytes = buffer.position()
 
-    // First write the total number of nodes on the header.
-    headerOut.write( intToByteArray(totalNodeCount) )
+    val rootNodeKeeping = nodeMap(rootNode)
+    assert( rootNodeKeeping != null )
+    // Set position to the beginning of the file.
+    buffer.position(0)
+    buffer.putInt(rootNodeKeeping.offset)
 
-    // Now on headerMap, we have data offset for each node.
-    // Visit trie nodes in breadth first order to write the offset of each node level by level.
-    bfs( new rootNode.Visitor() {
-      def visit(level : Int, nodeKey : Array[Byte], node : TrieNode[ValueType]): Unit = {
-        val nodeHeader = headerMap(node)
-        headerOut.write( intToByteArray(nodeHeader.offset) )
-      }
-    })
-
-    (headerOut.getBytes(), dataOut.getBytes())
+    writtenBytes
   }
 }
