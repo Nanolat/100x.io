@@ -12,11 +12,11 @@ trait TrieTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
   this: Suite =>
   val keySpaceSize = 16
   val keyLength = 1
-  var trie: Trie[String] = null
+  var trie: MutableTrie[String] = null
 
   val t = newTrie // A dummy tree for creating a leaf node and an internal node.
 
-  def newTrie = new Trie[String]()
+  def newTrie = new MutableTrie[String]()
 
   override def beforeEach() {
     // set-up code
@@ -59,7 +59,7 @@ trait TrieTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
     }
   }
 
-  def assertGetKeys(min : Int, max : Int, filterOption:Option[(Int=>Boolean)] = None ): Unit = {
+  def assertGetKeys[TrieType <% {def get(key:Array[Byte]):String} ](theTrie : TrieType, min : Int, max : Int, filterOption:Option[(Int=>Boolean)] ): Unit = {
     // Generate keys with two characters from a0 to ff.
     (min to max) map { i =>
       val key = i2key(i)
@@ -68,9 +68,12 @@ trait TrieTestTrait extends BeforeAndAfterEach with PrivateMethodTester with Sho
         case Some(filter) => if (filter(i)) key else null
         case None => key
       }
-
-      get( key ) should be (expectedData)
+      theTrie.get( NibArr(key) ) should be (expectedData)
     }
+  }
+
+  def assertGetKeys(min : Int, max : Int, filterOption:Option[(Int=>Boolean)] ): Unit = {
+    assertGetKeys(trie, min, max, filterOption )
   }
 
   def delKeys(min : Int, max : Int, filterOption:Option[(Int=>Boolean)] = None): Unit = {

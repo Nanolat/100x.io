@@ -131,11 +131,13 @@ class TrieNode[ ValueType >: Null ](var value : ValueType, var children : Sorted
 }
 
 trait ValueSerializer[ValueType >: Null ] {
+  /* Skip the value from the buffer */
+  def skip(buffer : ByteBuffer)
   def serialize(buffer : ByteBuffer, value : ValueType)
   def deserialize(buffer : ByteBuffer) : ValueType
 }
 
-class Trie[ ValueType >: Null ]()(implicit m : ClassTag[ValueType]) {
+class MutableTrie[ ValueType >: Null ]()(implicit m : ClassTag[ValueType]) {
 
   // The root node of the trie. It does not have any option value associated with it.
   val rootNode = new TrieNode[ValueType](value = null)
@@ -250,5 +252,77 @@ class Trie[ ValueType >: Null ]()(implicit m : ClassTag[ValueType]) {
     buffer.putInt(rootNodeKeeping.offset)
 
     writtenBytes
+  }
+}
+
+object ImmutableTrie {
+  def createFrom[ValueType >: Null]( buffer : ByteBuffer, valueSerializer: ValueSerializer[ValueType] ) : ImmutableTrie[ValueType] = {
+    new ImmutableTrie[ValueType](buffer, valueSerializer)
+  }
+}
+
+class ImmutableTrie[ValueType >: Null] private (sourceBuffer : ByteBuffer, valueSerializer: ValueSerializer[ValueType]) {
+  sourceBuffer.position(0)
+  private val rootOffset = sourceBuffer.getInt()
+
+  /**
+   * Find a node that serves the given key, and return the offset of the node in the serialized trie array.
+   *
+   * @param buffer The byte buffer that has serialized byte array.
+   * @param keyArray The key buffer that has the key to find.
+   * @param keyOffset The offset in the key buffer. We increase it for each recursive call to this function.
+   * @return The offset of the node that serves the given key. Note that the node can be an internal node as well,
+   *         because an internal node also has an associated value in the trie. Return -1 if the key was not found.
+   */
+  def servingNodePosition( buffer : ByteBuffer, keyArray : Array[Byte], keyOffset : Int ) : Int = {
+    val nodeOffset = buffer.position()
+
+    val keyToFind = keyArray(keyOffset)
+    assert( keyToFind < 16 )
+
+    // Skip the value part
+    valueSerializer.skip(buffer)
+
+    val childrenCount = buffer.get()
+
+    if (childrenCount == 0) // This is a leaf node. no more children, meaning we don't have the key on the trie.
+      -1
+    else {
+      for (i <- 1 to childrenCount) {
+        val key = buffer.get()
+        val relativeOffset = Varint.readUnsignedVarInt(buffer)
+        val childNodeOffset = nodeOffset - relativeOffset
+
+        if (key == keyToFind ) {
+          if ( keyOffset == keyArray.length -1 ) { // If the last one, return the offset of the node
+            return childNodeOffset
+          } else { // Otherwise, keep searching with the next offset.
+            buffer.position(childNodeOffset) // Move to the offset of the child node before calling servingNodePosition.
+            return servingNodePosition( buffer, keyArray, keyOffset + 1)
+          }
+        }
+      }
+
+      // We did not find the key.
+      -1
+    }
+  }
+
+  /**
+   * Get a value associated with the given key. Return null if the key was not found.
+   * @param nibbleKey The key to find.
+   * @return The value associated with the given key. null if the key was not found.
+   */
+  def get( nibbleKey : Array[Byte] ) = {
+    val buffer = sourceBuffer.asReadOnlyBuffer()
+    buffer.position(rootOffset)
+    val offset = servingNodePosition( buffer, nibbleKey, 0)
+    if (offset < 0) {
+      null // The key was not found.
+    } else {
+      buffer.position(offset)
+      val value = valueSerializer.deserialize(buffer)
+      value
+    }
   }
 }

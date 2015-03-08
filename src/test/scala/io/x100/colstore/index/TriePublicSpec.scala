@@ -38,15 +38,26 @@ class TriePublicSpec extends FlatSpec with ShouldMatchers with TrieTestTrait {
         new String(bytes, StandardCharsets.UTF_8)
       }
     }
+
+    def skip(buffer: ByteBuffer): Unit = {
+      val length = Varint.readSignedVarInt(buffer)
+      if (length <= 0) {
+        // do nothing
+      } else {
+        buffer.position( buffer.position() + length )
+      }
+    }
   }
 
   "put/get/del" should "work" in {
+
     (0 to 128) map { testKeyCount =>
       putKeys(0, testKeyCount)
-      assertGetKeys(0, testKeyCount)
+      assertGetKeys(0, testKeyCount, None)
 
       def deleteFilter(n : Int) = n % (testKeyCount%7 + 2) == 1
       def assertFilter(n : Int) = ! deleteFilter(n)
+
       delKeys(0, testKeyCount, Some(deleteFilter) )
       assertGetKeys(0, testKeyCount, Some(assertFilter) )
     }
@@ -61,6 +72,13 @@ class TriePublicSpec extends FlatSpec with ShouldMatchers with TrieTestTrait {
       val buffer = fc.map(FileChannel.MapMode.READ_WRITE, 0, bufferSize)
       val writtenBytes = trie.serialize(buffer, stringSerializer)
       rafile.setLength(writtenBytes)
+
+      val immutableTrie = ImmutableTrie.createFrom[String](buffer, stringSerializer)
+
+      val testKeyCount = 128
+      def deleteFilter(n : Int) = n % (testKeyCount%7 + 2) == 1
+      def assertFilter(n : Int) = ! deleteFilter(n)
+      assertGetKeys(immutableTrie, 0, testKeyCount, Some(assertFilter) )
     }
   }
 }
